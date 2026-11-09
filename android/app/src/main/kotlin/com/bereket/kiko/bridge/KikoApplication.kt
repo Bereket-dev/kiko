@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import com.bereket.kiko.call.CallLogApiImpl
+import com.bereket.kiko.recordings.RecordingFilesApiImpl
 import io.flutter.embedding.engine.FlutterEngine
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,6 +30,21 @@ class KikoApplication : Application() {
     lateinit var pendingQueue: PendingEventQueue
         private set
 
+    // ── API impl instances (set during registerActivityHandlers) ──────────────
+    //
+    // Stored here so background services (CallScreeningService, BootReceiver)
+    // can access them without re-instantiating.
+
+    /** Call-log reader; available after [registerActivityHandlers] is called. */
+    var callLogApi: CallLogApiImpl? = null
+        private set
+
+    /** Recording-files SAF accessor; available after [registerActivityHandlers]. */
+    var recordingFilesApi: RecordingFilesApiImpl? = null
+        private set
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+
     override fun onCreate() {
         super.onCreate()
         lookupStore = EncryptedLookupStore(this)
@@ -35,19 +52,52 @@ class KikoApplication : Application() {
         Log.d(TAG, "KikoApplication initialised.")
     }
 
+    // ── Pigeon registration ───────────────────────────────────────────────────
+
     /**
-     * Registers Pigeon HostApi handlers that only need [Context].
+     * Registers Pigeon HostApi handlers that need an [Activity] + [FlutterEngine].
+     *
      * Called once from MainActivity.configureFlutterEngine.
+     *
+     * TO ACTIVATE FULL PIGEON WIRING:
+     *   Run codegen for each IDL file, e.g.:
+     *     dart run pigeon --input pigeons/lookup_index.dart
+     *     dart run pigeon --input pigeons/pending_events.dart
+     *     dart run pigeon --input pigeons/settings_sync.dart
+     *     dart run pigeon --input pigeons/permissions_api.dart
+     *     dart run pigeon --input pigeons/call_log_api.dart
+     *     dart run pigeon --input pigeons/recording_files_api.dart
+     *
+     *   Then un-comment the setUp calls below.
      */
     fun registerActivityHandlers(activity: Activity, engine: FlutterEngine) {
-        // Pigeon-generated setup methods will be called here once we run
-        // `dart run pigeon --input pigeons/...` to generate the stubs.
-        // For now this is a placeholder — the generated classes live in
-        // android/.../pigeon/ and follow the pattern:
-        //   LookupIndexApi.setUp(engine.dartExecutor.binaryMessenger, LookupIndexApiImpl(...))
-        //   PendingEventsApi.setUp(engine.dartExecutor.binaryMessenger, PendingEventsApiImpl(...))
-        //   SettingsSyncApi.setUp(...)
-        //   PermissionsApi.setUp(...)
-        Log.d(TAG, "Pigeon handlers placeholder registered. Run pigeon codegen to activate.")
+        val messenger = engine.dartExecutor.binaryMessenger
+
+        // ── Instantiate impl classes and store references ─────────────────────
+        callLogApi = CallLogApiImpl(this)
+        recordingFilesApi = RecordingFilesApiImpl(this)
+
+        val lookupImpl = LookupIndexApiImpl(lookupStore)
+        val pendingImpl = PendingEventsApiImpl(pendingQueue)
+        val settingsImpl = SettingsSyncApiImpl(pendingQueue)
+        val permissionsImpl = PermissionsApiImpl(this, activity)
+
+        // ── TODO: un-comment after running Pigeon codegen ─────────────────────
+        //
+        // import com.bereket.kiko.pigeon.LookupIndexApi
+        // import com.bereket.kiko.pigeon.PendingEventsApi
+        // import com.bereket.kiko.pigeon.SettingsSyncApi
+        // import com.bereket.kiko.pigeon.PermissionsApi
+        // import com.bereket.kiko.pigeon.CallLogApi
+        // import com.bereket.kiko.pigeon.RecordingFilesApi
+        //
+        // LookupIndexApi.setUp(messenger, lookupImpl)
+        // PendingEventsApi.setUp(messenger, pendingImpl)
+        // SettingsSyncApi.setUp(messenger, settingsImpl)
+        // PermissionsApi.setUp(messenger, permissionsImpl)
+        // CallLogApi.setUp(messenger, callLogApi)
+        // RecordingFilesApi.setUp(messenger, recordingFilesApi)
+
+        Log.d(TAG, "Pigeon handler instances created. Run pigeon codegen to activate wire-up.")
     }
 }

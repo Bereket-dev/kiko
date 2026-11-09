@@ -1,8 +1,29 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ── Telephony / call log ──────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <!-- Deprecated on API 29+; used only on older devices for outgoing call intercept -->
+    <uses-permission
+        android:name="android.permission.PROCESS_OUTGOING_CALLS"
+        android:maxSdkVersion="28" />
+
+    <!-- ── Overlay / UI ─────────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- ── Services / background ────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.BIND_SCREENING_SERVICE" />
+
     <application
         android:label="kiko"
         android:name="com.bereket.kiko.bridge.KikoApplication"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- ── Main Flutter activity ──────────────────────────────────── -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -13,24 +34,56 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
             <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- ── Call Screening Service ─────────────────────────────────── -->
+        <!--
+            exported=true is required — the Telecom framework binds to this
+            service by name.  The BIND_SCREENING_SERVICE permission ensures
+            only the system can do so.
+        -->
+        <service
+            android:name="com.bereket.kiko.call.KikoCallScreeningService"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
+        <!-- ── Overlay Window Service ─────────────────────────────────── -->
+        <service
+            android:name="com.bereket.kiko.call.OverlayWindowService"
+            android:exported="false" />
+
+        <!-- ── Boot Receiver ──────────────────────────────────────────── -->
+        <receiver
+            android:name="com.bereket.kiko.call.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
+
     <queries>
         <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
         </intent>
     </queries>
+
 </manifest>

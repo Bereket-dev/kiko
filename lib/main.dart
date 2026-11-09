@@ -22,11 +22,61 @@ void main() async {
   );
 }
 
-class KikoApp extends ConsumerWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// AppLifecycleObserver
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Drains the native pending-events queue whenever the app returns to the
+// foreground.  Registered on the WidgetsBinding by KikoApp.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AppLifecycleObserver extends WidgetsBindingObserver {
+  _AppLifecycleObserver(this._ref);
+
+  final WidgetRef _ref;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Fire-and-forget; errors are handled inside drain().
+      _ref.read(pendingDrainServiceProvider).drain();
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KikoApp
+// ─────────────────────────────────────────────────────────────────────────────
+
+class KikoApp extends ConsumerStatefulWidget {
   const KikoApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<KikoApp> createState() => _KikoAppState();
+}
+
+class _KikoAppState extends ConsumerState<KikoApp> {
+  late final _AppLifecycleObserver _lifecycleObserver;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleObserver = _AppLifecycleObserver(ref);
+    WidgetsBinding.instance.addObserver(_lifecycleObserver);
+    // Drain once on startup (cold start) as well.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(pendingDrainServiceProvider).drain();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(_lifecycleObserver);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Kiko',
       routerConfig: appRouter,

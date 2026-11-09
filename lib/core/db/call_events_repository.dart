@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../db/database.dart';
+import '../pigeon/api_shims.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CallEventsRepository
@@ -79,6 +80,35 @@ class CallEventsRepository {
         .getSingleOrNull();
   }
 
+  /// Get a single call event by its integer primary key.
+  Future<CallEvent?> getCallEventById(int id) {
+    return (_db.select(_db.callEvents)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  /// Returns call events since [sinceMs] that have no attached recording.
+  Future<List<CallEvent>> getCallEventsWithNoRecordingSince(
+      int sinceMs) async {
+    final rows = await _db.customSelect(
+      'SELECT ce.* FROM call_events ce '
+      'LEFT JOIN call_recordings cr ON cr.call_event_id = ce.id '
+      'WHERE ce.started_at >= ? AND cr.id IS NULL '
+      'ORDER BY ce.started_at DESC',
+      variables: [Variable.withInt(sinceMs)],
+    ).get();
+
+    return rows.map((r) => CallEvent(
+          id: r.read<int>('id'),
+          leadId: r.read<String>('lead_id'),
+          e164: r.read<String>('e164'),
+          callType: r.read<String>('call_type'),
+          startedAt: r.read<int>('started_at'),
+          durationSec: r.read<int>('duration_sec'),
+          notes: r.readNullable<String>('notes'),
+          createdAt: r.read<int>('created_at'),
+        )).toList();
+  }
+
   // ── Update ────────────────────────────────────────────────────────────────
 
   Future<void> updateNotes(int callEventId, String notes) async {
@@ -132,5 +162,97 @@ class CallEventsRepository {
     await (_db.delete(_db.callRecordings)
           ..where((t) => t.id.equals(recordingId)))
         .go();
+  }
+
+  // ── Drain pending events from native layer ────────────────────────────────
+
+  /// Drains the native pending-events queue into the Drift DB in one
+  /// transaction.
+  ///
+  /// 1. Calls [PendingEventsApiShim.drainPendingEvents()] — uses a no-op
+  ///    in-memory list until Pigeon codegen runs.
+  /// 2. For each event: look up leadId by e164; if found, inserts a
+  ///    [CallEvent] row, updates [Lead.lastContactAt], and optionally updates
+  ///    [Lead.status] when [PendingCallEventShim.statusCode] is set.
+  /// 3. Calls [PendingEventsApiShim.clearPendingEvents()] only after
+  ///    the transaction commits successfully.
+  /// 4. Returns the count of events actually persisted.
+  ///
+  /// Idempotent: duplicates are silently skipped via the unique constraint on
+  /// (leadId, startedAt) — any [SqlException] for a duplicate row is caught and
+  /// the loop continues.
+  Future<int> drainAndPersistPending() async {
+    final events =
+        await PendingEventsApiShim.instance.drainPendingEvents();
+    if (events.isEmpty) return 0;
+
+    int persisted = 0;
+
+    await _db.transaction(() async {
+      for (final event in events) {
+        // 1. Look up the lead that owns this phone number.
+        final phoneRows = await _db.customSelect(
+          'SELECT lead_id FROM lead_phones WHERE e164 = ? LIMIT 1',
+          variables: [Variable.withString(event.e164)],
+        ).get();
+
+        if (phoneRows.isEmpty) {
+          // Unknown caller — no matching lead; skip.
+          continue;
+        }
+
+        final leadId = phoneRows.first.read<String>('lead_id');
+        final now = DateTime.now().millisecondsSinceEpoch;
+
+        // 2. Insert the call event; skip on unique-constraint violation.
+        try {
+          await _db.into(_db.callEvents).insert(
+                CallEventsCompanion.insert(
+                  leadId: leadId,
+                  e164: event.e164,
+                  callType: event.callType,
+                  startedAt: event.startedAtMs,
+                  durationSec: Value(event.durationSec),
+                  createdAt: now,
+                ),
+                mode: InsertMode.insertOrIgnore,
+              );
+        } catch (_) {
+          // Unique constraint violation or other insert error — skip this row.
+          continue;
+        }
+
+        persisted++;
+
+        // 3. Update lastContactAt on the lead.
+        await (_db.update(_db.leads)
+              ..where((t) => t.id.equals(leadId)))
+            .write(
+          LeadsCompanion(
+            lastContactAt: Value(event.startedAtMs),
+            updatedAt: Value(now),
+          ),
+        );
+
+        // 4. If the event carries a status code, update the lead status too.
+        if (event.statusCode != null && event.statusCode!.isNotEmpty) {
+          await (_db.update(_db.leads)
+                ..where((t) => t.id.equals(leadId)))
+              .write(
+            LeadsCompanion(
+              status: Value(event.statusCode!),
+              updatedAt: Value(now),
+            ),
+          );
+        }
+      }
+    });
+
+    // 5. Clear the native queue only after a successful commit.
+    if (persisted > 0) {
+      await PendingEventsApiShim.instance.clearPendingEvents();
+    }
+
+    return persisted;
   }
 }

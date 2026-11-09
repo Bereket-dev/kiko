@@ -27,6 +27,16 @@ class LeadsListScreen extends ConsumerWidget {
             tooltip: 'Paste lead',
             onPressed: () => context.push('/leads/paste'),
           ),
+          IconButton(
+            icon: const Icon(Icons.call_outlined),
+            tooltip: 'Recent calls',
+            onPressed: () => context.push('/recent-calls'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
+          ),
         ],
       ),
       body: leadsAsync.when(
