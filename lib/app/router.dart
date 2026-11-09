@@ -1,10 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/calls/recent_calls_screen.dart';
 import '../features/leads/leads_list_screen.dart';
 import '../features/leads/lead_detail_screen.dart';
 import '../features/leads/add_edit_lead_screen.dart';
+import '../features/leads/merge_lead_screen.dart';
 import '../features/leads/paste_preview_screen.dart';
+import '../features/settings/permissions_wizard_screen.dart';
+import '../features/settings/settings_screen.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MergeRouteArgs — typed extras for /leads/merge
+// ─────────────────────────────────────────────────────────────────────────────
+
+class MergeRouteArgs {
+  const MergeRouteArgs({
+    required this.screen,
+  });
+
+  /// Pre-built MergeLeadScreen instance passed via GoRouter extra.
+  final MergeLeadScreen screen;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App Router
@@ -17,6 +34,10 @@ import '../features/leads/paste_preview_screen.dart';
 //   /leads/:id/edit          → Edit lead
 //   /leads/paste             → Paste-to-preview screen
 //   /leads/add?phone=<e164>  → Add lead pre-filled with phone (from overlay)
+//   /leads/merge             → Merge lead screen (extra: MergeRouteArgs)
+//   /recent-calls            → Recent calls list (Phase 5)
+//   /permissions-wizard      → Step-by-step permissions wizard (Phase 5)
+//   /settings                → App settings (Phase 5)
 // ─────────────────────────────────────────────────────────────────────────────
 
 final appRouter = GoRouter(
@@ -39,6 +60,19 @@ final appRouter = GoRouter(
           builder: (context, state) => const PastePreviewScreen(),
         ),
         GoRoute(
+          path: 'leads/merge',
+          builder: (_, state) {
+            final args = state.extra as MergeRouteArgs?;
+            if (args == null) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('Merge Lead')),
+                body: const Center(child: Text('Missing merge data.')),
+              );
+            }
+            return args.screen;
+          },
+        ),
+        GoRoute(
           path: 'leads/:id',
           builder: (_, state) {
             final id = state.pathParameters['id']!;
@@ -55,6 +89,18 @@ final appRouter = GoRouter(
           ],
         ),
       ],
+    ),
+    GoRoute(
+      path: '/recent-calls',
+      builder: (_, __) => const RecentCallsScreen(),
+    ),
+    GoRoute(
+      path: '/permissions-wizard',
+      builder: (_, __) => const PermissionsWizardScreen(),
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (_, __) => const SettingsScreen(),
     ),
   ],
   errorBuilder: (_, state) => Scaffold(

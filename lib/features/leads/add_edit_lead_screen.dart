@@ -9,7 +9,9 @@ import 'package:image_picker/image_picker.dart';
 import '../../app/providers.dart';
 import '../../core/models/lead_status.dart';
 import '../../features/parser/phone_normalizer.dart';
+import 'duplicate_detection_dialog.dart';
 import 'lead_draft.dart';
+import 'merge_lead_screen.dart';
 import 'sections_crud_widget.dart';
 import 'status_chip.dart';
 
@@ -345,6 +347,79 @@ class _AddEditLeadScreenState extends ConsumerState<AddEditLeadScreen> {
         .map((s) => (title: s.title, body: s.body))
         .toList();
 
+    // ── Duplicate detection (Add mode only; Edit mode skips own phones) ──
+    final e164s = validPhones.map((p) => p.e164).toList();
+    final duplicates = await repo.findDuplicatesByPhones(
+      e164s,
+      excludeLeadId: widget.editLeadId, // null on add → no exclusion
+    );
+
+    if (duplicates.isNotEmpty && mounted) {
+      // Determine if "Save as separate" is valid:
+      // It's valid only when every conflicting phone has been removed from
+      // the draft (i.e., no overlap).
+      final allExistingE164s = <String>{};
+      for (final dup in duplicates) {
+        final phones = await repo.getPhonesForLead(dup.id);
+        allExistingE164s.addAll(phones.map((p) => p.e164));
+      }
+      final draftE164s = e164s.toSet();
+      final canSaveAsSeparate = draftE164s.intersection(allExistingE164s).isEmpty;
+
+      final result = await DuplicateDetectionDialog.show(
+        context,
+        draft: _draft,
+        duplicates: duplicates,
+        canSaveAsSeparate: canSaveAsSeparate,
+      );
+
+      switch (result.action) {
+        case DuplicateAction.cancel:
+          // Return to editor — do nothing.
+          return;
+
+        case DuplicateAction.keepExisting:
+          // Discard draft and go back.
+          if (mounted) context.pop();
+          return;
+
+        case DuplicateAction.saveAsSeparate:
+          // Fall through to normal save below — phones no longer conflict.
+          break;
+
+        case DuplicateAction.reviewAndMerge:
+          // Navigate to MergeLeadScreen.
+          final targetId = result.chosenTargetLeadId!;
+          final targetLead = await repo.getLeadById(targetId);
+          if (targetLead == null || !mounted) return;
+
+          final existingPhones = await repo.getPhonesForLead(targetId);
+          final existingSections = await repo.getSectionsForLead(targetId);
+
+          // Sync draft one more time.
+          _draft.name = name;
+          _draft.businessType = businessType;
+          _draft.notes = notes;
+
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => MergeLeadScreen(
+                targetLead: targetLead,
+                existingPhones: existingPhones,
+                existingSections: existingSections,
+                draft: _draft,
+                draftPhones: validPhones,
+                draftSections: sections,
+              ),
+            ),
+          );
+          // MergeLeadScreen pops all the way to the list on save.
+          // If the user cancels, they're back here — just return.
+          return;
+      }
+    }
+
+    // ── No conflict (or user chose Save as separate) → persist normally ──
     // Determine source.
     final source = widget.initialDraft != null ? 'PASTE' : 'MANUAL';
 

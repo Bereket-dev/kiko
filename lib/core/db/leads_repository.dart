@@ -4,6 +4,30 @@ import 'package:uuid/uuid.dart';
 import '../db/database.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MergeSnapshot — captures lead state before a merge for undo
+// ─────────────────────────────────────────────────────────────────────────────
+
+class MergeSnapshot {
+  const MergeSnapshot({
+    required this.leadId,
+    required this.name,
+    required this.businessType,
+    required this.status,
+    required this.notes,
+    required this.phones,
+    required this.sections,
+  });
+
+  final String leadId;
+  final String name;
+  final String? businessType;
+  final String status;
+  final String? notes;
+  final List<({String e164, String? label, bool isPrimary})> phones;
+  final List<({String title, String body})> sections;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // LeadsRepository
 // ─────────────────────────────────────────────────────────────────────────────
 //
@@ -283,6 +307,199 @@ class LeadsRepository {
     });
   }
 
+  // ── Duplicate detection ───────────────────────────────────────────────────
+
+  /// Returns all leads whose stored e164 phones conflict with any phone in
+  /// [e164s], excluding [excludeLeadId] (the lead currently being edited).
+  Future<List<Lead>> findDuplicatesByPhones(
+    List<String> e164s, {
+    String? excludeLeadId,
+  }) async {
+    if (e164s.isEmpty) return [];
+
+    // Build placeholders: (?, ?, ...)
+    final placeholders = List.filled(e164s.length, '?').join(', ');
+    final variables = <Variable>[
+      for (final e in e164s) Variable.withString(e),
+    ];
+
+    String sql;
+    if (excludeLeadId != null) {
+      sql = 'SELECT DISTINCT lead_id FROM lead_phones '
+          'WHERE e164 IN ($placeholders) AND lead_id != ?';
+      variables.add(Variable.withString(excludeLeadId));
+    } else {
+      sql = 'SELECT DISTINCT lead_id FROM lead_phones '
+          'WHERE e164 IN ($placeholders)';
+    }
+
+    final rows = await _db.customSelect(sql, variables: variables).get();
+    final ids = rows.map((r) => r.read<String>('lead_id')).toList();
+    if (ids.isEmpty) return [];
+
+    return (_db.select(_db.leads)..where((t) => t.id.isIn(ids))).get();
+  }
+
+  // ── Merge ─────────────────────────────────────────────────────────────────
+
+  /// Merges the draft data (from the new/edited lead) into [targetLeadId].
+  ///
+  /// Steps performed in a single transaction:
+  /// 1. Snapshot the current target lead + phones + sections (returned as
+  ///    [MergeSnapshot] so the caller can offer an undo).
+  /// 2. Overwrite target lead fields that the user chose from the draft.
+  /// 3. Union phones: keep all existing, add draft phones not already present.
+  ///    [draftPhoneE164s] lists every e164 the user kept checked.
+  /// 4. Replace sections with the ordered list the user confirmed.
+  /// 5. Rebuild FTS row.
+  /// 6. Return the [MergeSnapshot] for undo.
+  Future<MergeSnapshot> mergeLead({
+    required String targetLeadId,
+    // Fields to overwrite (null = keep existing):
+    String? name,
+    String? businessType,
+    String? status,
+    String? notes,
+    // Phones: full union list as e164 → (label, isPrimary)
+    required List<({String e164, String? label, bool isPrimary})> mergedPhones,
+    // Sections: ordered final list
+    required List<({String title, String body})> mergedSections,
+  }) async {
+    return _db.transaction(() async {
+      // 1. Snapshot
+      final targetLead = await (_db.select(_db.leads)
+            ..where((t) => t.id.equals(targetLeadId)))
+          .getSingle();
+      final existingPhones = await (_db.select(_db.leadPhones)
+            ..where((t) => t.leadId.equals(targetLeadId)))
+          .get();
+      final existingSections = await (_db.select(_db.leadSections)
+            ..where((t) => t.leadId.equals(targetLeadId))
+            ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+          .get();
+
+      final snapshot = MergeSnapshot(
+        leadId: targetLeadId,
+        name: targetLead.name,
+        businessType: targetLead.businessType,
+        status: targetLead.status,
+        notes: targetLead.notes,
+        phones: existingPhones
+            .map((p) => (
+                  e164: p.e164,
+                  label: p.label,
+                  isPrimary: p.isPrimary,
+                ))
+            .toList(),
+        sections: existingSections
+            .map((s) => (title: s.title, body: s.body))
+            .toList(),
+      );
+
+      // 2. Update lead fields
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await (_db.update(_db.leads)
+            ..where((t) => t.id.equals(targetLeadId)))
+          .write(
+        LeadsCompanion(
+          name: name != null ? Value(name) : const Value.absent(),
+          businessType: businessType != null
+              ? Value(businessType.isEmpty ? null : businessType)
+              : const Value.absent(),
+          status:
+              status != null ? Value(status) : const Value.absent(),
+          notes: notes != null
+              ? Value(notes.isEmpty ? null : notes)
+              : const Value.absent(),
+          updatedAt: Value(now),
+        ),
+      );
+
+      // 3. Replace phones with merged list
+      await (_db.delete(_db.leadPhones)
+            ..where((t) => t.leadId.equals(targetLeadId)))
+          .go();
+      for (final (i, ph) in mergedPhones.indexed) {
+        await _db.into(_db.leadPhones).insert(
+              LeadPhonesCompanion.insert(
+                leadId: targetLeadId,
+                e164: ph.e164,
+                label: Value(ph.label),
+                isPrimary: Value(i == 0 || ph.isPrimary),
+              ),
+            );
+      }
+
+      // 4. Replace sections with merged/reordered list
+      await (_db.delete(_db.leadSections)
+            ..where((t) => t.leadId.equals(targetLeadId)))
+          .go();
+      for (final (i, s) in mergedSections.indexed) {
+        await _db.into(_db.leadSections).insert(
+              LeadSectionsCompanion.insert(
+                leadId: targetLeadId,
+                title: s.title,
+                body: s.body,
+                position: Value(i),
+              ),
+            );
+      }
+
+      // 5. Rebuild FTS
+      await _rebuildFts(targetLeadId);
+
+      return snapshot;
+    });
+  }
+
+  /// Restores a lead to the state captured in [snapshot].
+  Future<void> undoMerge(MergeSnapshot snapshot) async {
+    await _db.transaction(() async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await (_db.update(_db.leads)
+            ..where((t) => t.id.equals(snapshot.leadId)))
+          .write(
+        LeadsCompanion(
+          name: Value(snapshot.name),
+          businessType: Value(snapshot.businessType),
+          status: Value(snapshot.status),
+          notes: Value(snapshot.notes),
+          updatedAt: Value(now),
+        ),
+      );
+
+      await (_db.delete(_db.leadPhones)
+            ..where((t) => t.leadId.equals(snapshot.leadId)))
+          .go();
+      for (final (i, ph) in snapshot.phones.indexed) {
+        await _db.into(_db.leadPhones).insert(
+              LeadPhonesCompanion.insert(
+                leadId: snapshot.leadId,
+                e164: ph.e164,
+                label: Value(ph.label),
+                isPrimary: Value(i == 0 || ph.isPrimary),
+              ),
+            );
+      }
+
+      await (_db.delete(_db.leadSections)
+            ..where((t) => t.leadId.equals(snapshot.leadId)))
+          .go();
+      for (final (i, s) in snapshot.sections.indexed) {
+        await _db.into(_db.leadSections).insert(
+              LeadSectionsCompanion.insert(
+                leadId: snapshot.leadId,
+                title: s.title,
+                body: s.body,
+                position: Value(i),
+              ),
+            );
+      }
+
+      await _rebuildFts(snapshot.leadId);
+    });
+  }
+
   // ── FTS search ────────────────────────────────────────────────────────────
 
   Future<List<Lead>> searchLeads(String query) async {
@@ -294,7 +511,10 @@ class LeadsRepository {
       variables: [Variable.withString('"$sanitised"*')],
     ).get();
 
-    final ids = rows.map((r) => r.read<String>('lead_id')).toList();
+    final ids = rows
+        .map((r) => r.readNullable<String>('lead_id'))
+        .whereType<String>()
+        .toList();
     if (ids.isEmpty) return [];
 
     return (_db.select(_db.leads)

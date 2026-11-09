@@ -6,10 +6,12 @@ import '../core/db/call_events_repository.dart';
 import '../core/db/call_plan_repository.dart';
 import '../core/db/database.dart';
 import '../core/db/leads_repository.dart';
+import '../core/db/pending_drain_service.dart';
 import '../core/db/reminders_repository.dart';
 import '../core/settings/app_settings.dart';
 import '../core/utils/image_service.dart';
 import '../core/utils/lookup_index_service.dart';
+import '../features/calls/recording_scan_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core providers — initialised in bootstrap() before ProviderScope mounts
@@ -52,6 +54,21 @@ final callPlanRepositoryProvider = Provider<CallPlanRepository>((ref) {
   return CallPlanRepository(ref.watch(appDatabaseProvider));
 });
 
+final pendingDrainServiceProvider = Provider<PendingDrainService>((ref) {
+  return PendingDrainService(
+    callEventsRepository: ref.watch(callEventsRepositoryProvider),
+    leadsRepository: ref.watch(leadsRepositoryProvider),
+    lookupIndexService: ref.watch(lookupIndexServiceProvider),
+    db: ref.watch(appDatabaseProvider),
+  );
+});
+
+final recordingScanServiceProvider = Provider<RecordingScanService>((ref) {
+  return RecordingScanService(
+    callEventsRepo: ref.watch(callEventsRepositoryProvider),
+  );
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Leads UI providers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -89,6 +106,27 @@ final leadImagesProvider =
 final businessTypesProvider = FutureProvider<List<String>>((ref) async {
   return ref.watch(leadsRepositoryProvider).getDistinctBusinessTypes();
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 4 — Merge providers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Find duplicate leads whose e164 phones conflict with [e164s].
+/// Pass [excludeLeadId] when editing an existing lead to skip its own phones.
+///
+/// Example:
+///   ref.read(duplicatesByPhonesProvider(
+///     (e164s: ['+251911...'], excludeLeadId: null)
+///   ).future)
+final duplicatesByPhonesProvider = FutureProvider.family<List<Lead>,
+    ({List<String> e164s, String? excludeLeadId})>(
+  (ref, args) async {
+    return ref.watch(leadsRepositoryProvider).findDuplicatesByPhones(
+          args.e164s,
+          excludeLeadId: args.excludeLeadId,
+        );
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Bootstrap result
