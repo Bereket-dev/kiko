@@ -170,7 +170,7 @@ class LeadTextParser {
     //   - At least one word starts with an uppercase letter (Title Case or ALL CAPS)
     //   - Not all words are common lowercase connectors
     final words = line.trim().split(RegExp(r'\s+'));
-    if (words.length < 1 || words.length > 4) return false;
+    if (words.isEmpty || words.length > 4) return false;
 
     final allAlpha = words.every((w) => RegExp(r'^[a-zA-Z]+$').hasMatch(w));
     if (!allAlpha) return false;

@@ -44,6 +44,13 @@ dependencies:
   # Crypto
   cryptography: ^2.7.0
 
+  # Images
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
+
+  # URL launching (tel: intent)
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

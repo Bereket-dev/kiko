@@ -8,22 +8,29 @@ import '../core/db/database.dart';
 import '../core/db/leads_repository.dart';
 import '../core/db/reminders_repository.dart';
 import '../core/settings/app_settings.dart';
+import '../core/utils/image_service.dart';
+import '../core/utils/lookup_index_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core providers — initialised in bootstrap() before ProviderScope mounts
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Override this with the real [AppDatabase] instance after bootstrap.
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  throw UnimplementedError(
-      'appDatabaseProvider must be overridden in ProviderScope overrides.');
+  throw UnimplementedError('appDatabaseProvider must be overridden.');
 });
 
-/// Override this with the real [AppSettings] instance after bootstrap.
 final appSettingsProvider = Provider<AppSettings>((ref) {
-  throw UnimplementedError(
-      'appSettingsProvider must be overridden in ProviderScope overrides.');
+  throw UnimplementedError('appSettingsProvider must be overridden.');
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Service providers
+// ─────────────────────────────────────────────────────────────────────────────
+
+final imageServiceProvider = Provider<ImageService>((_) => const ImageService());
+
+final lookupIndexServiceProvider =
+    Provider<LookupIndexService>((_) => const LookupIndexService());
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Repository providers
@@ -46,39 +53,61 @@ final callPlanRepositoryProvider = Provider<CallPlanRepository>((ref) {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Leads UI providers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Stream of all non-archived leads, newest first.
+final watchLeadsProvider = StreamProvider<List<Lead>>((ref) {
+  return ref.watch(leadsRepositoryProvider).watchAllLeads();
+});
+
+/// Single lead by id.
+final leadDetailProvider =
+    FutureProvider.family<Lead?, String>((ref, id) async {
+  return ref.watch(leadsRepositoryProvider).getLeadById(id);
+});
+
+/// Phones for a lead.
+final leadPhonesProvider =
+    FutureProvider.family<List<LeadPhone>, String>((ref, leadId) async {
+  return ref.watch(leadsRepositoryProvider).getPhonesForLead(leadId);
+});
+
+/// Sections for a lead.
+final leadSectionsProvider =
+    FutureProvider.family<List<LeadSection>, String>((ref, leadId) async {
+  return ref.watch(leadsRepositoryProvider).getSectionsForLead(leadId);
+});
+
+/// Images for a lead.
+final leadImagesProvider =
+    FutureProvider.family<List<LeadImage>, String>((ref, leadId) async {
+  return ref.watch(leadsRepositoryProvider).getImagesForLead(leadId);
+});
+
+/// Distinct non-null business types (trimmed, case-insensitive deduped).
+final businessTypesProvider = FutureProvider<List<String>>((ref) async {
+  return ref.watch(leadsRepositoryProvider).getDistinctBusinessTypes();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Bootstrap result
 // ─────────────────────────────────────────────────────────────────────────────
 
 class BootstrapResult {
-  const BootstrapResult({
-    required this.db,
-    required this.settings,
-  });
-
+  const BootstrapResult({required this.db, required this.settings});
   final AppDatabase db;
   final AppSettings settings;
 }
 
-/// Called from [main()] before [runApp()].
-/// Opens the encrypted DB, verifies FTS5, creates settings.
 Future<BootstrapResult> bootstrap() async {
-  // 1. Load SharedPreferences
   final prefs = await SharedPreferences.getInstance();
   final settings = AppSettings(prefs: prefs);
-
-  // 2. Get or create DB encryption key
   final keyManager = DbKeyManager();
   final hexKey = await keyManager.getOrCreateKey();
-
-  // 3. Open the encrypted database
   final executor = openEncryptedDatabase(hexKey);
   final db = AppDatabase(executor);
-
-  // 4. FTS5 gate — abort if FTS5 is unavailable (spec requirement)
   await db.verifyFts5Available();
-
-  // 5. Seed device ID (no-op if already set)
   await settings.getOrCreateDeviceId();
-
   return BootstrapResult(db: db, settings: settings);
 }

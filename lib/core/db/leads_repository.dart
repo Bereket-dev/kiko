@@ -226,6 +226,63 @@ class LeadsRepository {
     });
   }
 
+  // ── Business types autocomplete ───────────────────────────────────────────
+
+  Future<List<String>> getDistinctBusinessTypes() async {
+    final rows = await _db.customSelect(
+      'SELECT DISTINCT TRIM(business_type) AS bt FROM leads '
+      'WHERE business_type IS NOT NULL AND TRIM(business_type) != \'\' '
+      'ORDER BY bt COLLATE NOCASE',
+    ).get();
+    return rows.map((r) => r.read<String>('bt')).toList();
+  }
+
+  // ── Full sections/phones replace (used by Add/Edit save) ─────────────────
+
+  Future<void> replaceAllPhones(
+    String leadId,
+    List<({String e164, String? label, bool isPrimary})> phones,
+  ) async {
+    await _db.transaction(() async {
+      await (_db.delete(_db.leadPhones)
+            ..where((t) => t.leadId.equals(leadId)))
+          .go();
+      for (final (i, ph) in phones.indexed) {
+        await _db.into(_db.leadPhones).insert(
+              LeadPhonesCompanion.insert(
+                leadId: leadId,
+                e164: ph.e164,
+                label: Value(ph.label),
+                isPrimary: Value(i == 0 || ph.isPrimary),
+              ),
+            );
+      }
+      await _rebuildFts(leadId);
+    });
+  }
+
+  Future<void> replaceAllSections(
+    String leadId,
+    List<({String title, String body})> sections,
+  ) async {
+    await _db.transaction(() async {
+      await (_db.delete(_db.leadSections)
+            ..where((t) => t.leadId.equals(leadId)))
+          .go();
+      for (final (i, s) in sections.indexed) {
+        await _db.into(_db.leadSections).insert(
+              LeadSectionsCompanion.insert(
+                leadId: leadId,
+                title: s.title,
+                body: s.body,
+                position: Value(i),
+              ),
+            );
+      }
+      await _rebuildFts(leadId);
+    });
+  }
+
   // ── FTS search ────────────────────────────────────────────────────────────
 
   Future<List<Lead>> searchLeads(String query) async {
