@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import com.bereket.kiko.alarms.AlarmsApiImpl
+import com.bereket.kiko.alarms.NotificationHelper
 import com.bereket.kiko.call.CallLogApiImpl
 import com.bereket.kiko.recordings.RecordingFilesApiImpl
 import io.flutter.embedding.engine.FlutterEngine
@@ -43,12 +45,22 @@ class KikoApplication : Application() {
     var recordingFilesApi: RecordingFilesApiImpl? = null
         private set
 
+    /**
+     * AlarmManager wrapper — available immediately after [onCreate] so that
+     * BootReceiver and other background components can reschedule alarms
+     * without waiting for a Flutter engine to start.
+     */
+    lateinit var alarmsApi: AlarmsApiImpl
+        private set
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     override fun onCreate() {
         super.onCreate()
-        lookupStore = EncryptedLookupStore(this)
-        pendingQueue = PendingEventQueue(this)
+        lookupStore   = EncryptedLookupStore(this)
+        pendingQueue  = PendingEventQueue(this)
+        alarmsApi     = AlarmsApiImpl(this)
+        NotificationHelper.createChannels(this)
         Log.d(TAG, "KikoApplication initialised.")
     }
 
@@ -84,19 +96,31 @@ class KikoApplication : Application() {
 
         // ── TODO: un-comment after running Pigeon codegen ─────────────────────
         //
+        // Run codegen for each IDL file:
+        //   dart run pigeon --input pigeons/lookup_index.dart
+        //   dart run pigeon --input pigeons/pending_events.dart
+        //   dart run pigeon --input pigeons/settings_sync.dart
+        //   dart run pigeon --input pigeons/permissions_api.dart
+        //   dart run pigeon --input pigeons/call_log_api.dart
+        //   dart run pigeon --input pigeons/recording_files_api.dart
+        //   dart run pigeon --input pigeons/alarms_api.dart
+        //
         // import com.bereket.kiko.pigeon.LookupIndexApi
         // import com.bereket.kiko.pigeon.PendingEventsApi
         // import com.bereket.kiko.pigeon.SettingsSyncApi
         // import com.bereket.kiko.pigeon.PermissionsApi
         // import com.bereket.kiko.pigeon.CallLogApi
         // import com.bereket.kiko.pigeon.RecordingFilesApi
+        // import com.bereket.kiko.pigeon.AlarmsApi
+        // import com.bereket.kiko.alarms.AlarmsApiPigeonImpl
         //
         // LookupIndexApi.setUp(messenger, lookupImpl)
         // PendingEventsApi.setUp(messenger, pendingImpl)
         // SettingsSyncApi.setUp(messenger, settingsImpl)
         // PermissionsApi.setUp(messenger, permissionsImpl)
-        // CallLogApi.setUp(messenger, callLogApi)
-        // RecordingFilesApi.setUp(messenger, recordingFilesApi)
+        // CallLogApi.setUp(messenger, callLogApi!!)
+        // RecordingFilesApi.setUp(messenger, recordingFilesApi!!)
+        // AlarmsApi.setUp(messenger, AlarmsApiPigeonImpl(alarmsApi))
 
         Log.d(TAG, "Pigeon handler instances created. Run pigeon codegen to activate wire-up.")
     }

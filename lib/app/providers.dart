@@ -12,6 +12,9 @@ import '../core/settings/app_settings.dart';
 import '../core/utils/image_service.dart';
 import '../core/utils/lookup_index_service.dart';
 import '../features/calls/recording_scan_service.dart';
+import '../features/reminders/alarm_service.dart';
+import '../features/reminders/call_plan_service.dart';
+import '../features/reminders/reminder_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core providers — initialised in bootstrap() before ProviderScope mounts
@@ -127,6 +130,109 @@ final duplicatesByPhonesProvider = FutureProvider.family<List<Lead>,
         );
   },
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 6 — Reminders and Call Plan providers
+// ─────────────────────────────────────────────────────────────────────────────
+
+final alarmServiceProvider = Provider<AlarmService>((_) => AlarmService());
+
+final reminderServiceProvider = Provider<ReminderService>((ref) {
+  return ReminderService(
+    remindersRepo: ref.watch(remindersRepositoryProvider),
+    alarmService:  ref.watch(alarmServiceProvider),
+  );
+});
+
+/// Pending reminder for a single lead (null when none).
+final leadReminderProvider =
+    FutureProvider.family<Reminder?, String>((ref, leadId) async {
+  return ref
+      .watch(remindersRepositoryProvider)
+      .getPendingReminderForLead(leadId);
+});
+
+/// Stream of all PENDING reminders — used by boot-drain + reminder badge.
+final pendingRemindersProvider = StreamProvider<List<Reminder>>((ref) {
+  return ref.watch(remindersRepositoryProvider).watchPendingReminders();
+});
+
+final callPlanServiceProvider = Provider<CallPlanService>((ref) {
+  return CallPlanService(
+    callPlanRepo: ref.watch(callPlanRepositoryProvider),
+    alarmService: ref.watch(alarmServiceProvider),
+  );
+});
+
+/// All PENDING call-plan schedules — used by boot-drain reschedule.
+final pendingCallPlanSchedulesProvider =
+    FutureProvider<List<CallPlanSchedule>>((ref) async {
+  return ref.watch(callPlanRepositoryProvider).getPendingSchedules();
+});
+
+/// A single CallPlanSchedule by id.
+final callPlanScheduleProvider =
+    FutureProvider.family<CallPlanSchedule?, String>((ref, id) async {
+  return ref.watch(callPlanRepositoryProvider).getScheduleById(id);
+});
+
+/// Prioritised lead list for a given CallPlanSchedule.
+///
+/// Priority order:
+///   1. Chosen leads  (CallPlanLeads rows for this schedule, undone)
+///   2. Business-type filter  (if schedule.filterBusinessType != null)
+///   3. Due-today  (leads with a PENDING reminder due today)
+///
+/// Deduplication is applied so a lead appears at most once.
+final callPlanLeadsProvider =
+    FutureProvider.family<List<Lead>, CallPlanSchedule>((ref, schedule) async {
+  final leadsRepo    = ref.watch(leadsRepositoryProvider);
+  final callPlanRepo = ref.watch(callPlanRepositoryProvider);
+  final remRepo      = ref.watch(remindersRepositoryProvider);
+
+  final seen = <String>{};
+  final result = <Lead>[];
+
+  // 1. Chosen leads.
+  final chosenRows = await callPlanRepo.getLeadsForSchedule(schedule.id);
+  for (final row in chosenRows) {
+    if (row.done) continue;
+    final lead = await leadsRepo.getLeadById(row.leadId);
+    if (lead != null && !lead.archived && seen.add(lead.id)) {
+      result.add(lead);
+    }
+  }
+
+  // 2. Business-type filter.
+  if (schedule.filterBusinessType != null) {
+    final all = await leadsRepo.watchAllLeads().first;
+    for (final lead in all) {
+      if (lead.businessType == schedule.filterBusinessType &&
+          seen.add(lead.id)) {
+        result.add(lead);
+      }
+    }
+  }
+
+  // 3. Due-today leads (have a PENDING reminder due today).
+  final pending = await remRepo.getPendingReminders();
+  final todayStart = DateTime.now()
+      .copyWith(hour: 0, minute: 0, second: 0, millisecond: 0)
+      .millisecondsSinceEpoch;
+  final todayEnd = DateTime.now()
+      .copyWith(hour: 23, minute: 59, second: 59, millisecond: 999)
+      .millisecondsSinceEpoch;
+
+  for (final reminder in pending) {
+    if (reminder.dueAt < todayStart || reminder.dueAt > todayEnd) continue;
+    final lead = await leadsRepo.getLeadById(reminder.leadId);
+    if (lead != null && !lead.archived && seen.add(lead.id)) {
+      result.add(lead);
+    }
+  }
+
+  return result;
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Bootstrap result

@@ -46,6 +46,13 @@ class RemindersRepository {
         .getSingleOrNull();
   }
 
+  Future<Reminder?> getReminderById(int id) {
+    return (_db.select(_db.reminders)
+          ..where((t) => t.id.equals(id))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   Future<List<Reminder>> getPendingReminders() {
     return (_db.select(_db.reminders)
           ..where((t) => t.state.equals('PENDING'))

@@ -236,3 +236,66 @@ class _NoOpSettingsSyncApi implements SettingsSyncApiShim {
     required bool askUnknown,
   }) async {}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ScheduledAlarmShim — mirrors ScheduledAlarm from Pigeon IDL
+// ─────────────────────────────────────────────────────────────────────────────
+
+class ScheduledAlarmShim {
+  const ScheduledAlarmShim({
+    required this.alarmId,
+    required this.triggerAtMs,
+    required this.routeUri,
+    required this.title,
+    required this.body,
+    this.isCallPlan = false,
+  });
+
+  /// Unique identifier for this alarm (UUID string).
+  final String alarmId;
+
+  /// Unix epoch milliseconds at which the alarm should fire.
+  final int triggerAtMs;
+
+  /// Deep-link route URI opened when the user taps the notification.
+  /// Example: "/leads/abc123" or "/call-plan/xyz456".
+  final String routeUri;
+
+  /// Short notification title shown to the user.
+  final String title;
+
+  /// Notification body text.
+  final String body;
+
+  /// True for Call Plan alarms (routed to the call-plan notification channel).
+  final bool isCallPlan;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AlarmsApiShim
+// ─────────────────────────────────────────────────────────────────────────────
+
+abstract class AlarmsApiShim {
+  /// Schedule (or replace) the alarm described by [alarm].
+  Future<void> scheduleAlarm(ScheduledAlarmShim alarm);
+
+  /// Cancel the alarm identified by [alarmId], if it exists.
+  Future<void> cancelAlarm(String alarmId);
+
+  /// Cancel all alarms registered by Kiko.
+  Future<void> cancelAllAlarms();
+
+  /// Swappable singleton — replace with the real Pigeon impl at app init.
+  static AlarmsApiShim instance = _NoOpAlarmsApi();
+}
+
+class _NoOpAlarmsApi implements AlarmsApiShim {
+  @override
+  Future<void> scheduleAlarm(ScheduledAlarmShim alarm) async {}
+
+  @override
+  Future<void> cancelAlarm(String alarmId) async {}
+
+  @override
+  Future<void> cancelAllAlarms() async {}
+}

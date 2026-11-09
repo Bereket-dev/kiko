@@ -4,25 +4,65 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.bereket.kiko.alarms.AlarmStore
+import com.bereket.kiko.bridge.KikoApplication
 
 private const val TAG = "BootReceiver"
 
-/**
- * Receives BOOT_COMPLETED so the app can re-initialise any state that needs to
- * run after a device reboot (e.g., re-registering alarms or checking the
- * pending event queue).
- *
- * KikoApplication is instantiated automatically when the process starts, so
- * [EncryptedLookupStore] and [PendingEventQueue] are already available by the
- * time [onReceive] runs.
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// BootReceiver
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Listens for:
+//   BOOT_COMPLETED — device fully booted; AlarmManager lost all alarms.
+//   TIME_CHANGED   — user changed clock manually; re-anchor alarms.
+//
+// Strategy: AlarmStore (SharedPreferences) persists every scheduled alarm's
+// full record (id, triggerAtMs, routeUri, title, body, isCallPlan).  On boot
+// or time change we read all future-dated records and re-schedule them via
+// AlarmsApiImpl without touching the DB.  Records for past alarms are
+// automatically skipped by AlarmStore.getPending().
+//
+// KikoApplication.onCreate() runs before onReceive, so alarmsApi is ready.
+// ─────────────────────────────────────────────────────────────────────────────
+
 class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-        Log.i(TAG, "Device boot completed — Kiko initialised via Application class.")
-        // KikoApplication.onCreate() has already run at this point, so the
-        // lookup store and pending queue are ready.  Add any post-boot logic
-        // here (e.g., re-scheduling AlarmManager triggers).
+        val action = intent.action
+        if (action != Intent.ACTION_BOOT_COMPLETED &&
+            action != Intent.ACTION_TIME_CHANGED) {
+            return
+        }
+
+        val app = context.applicationContext as? KikoApplication
+        if (app == null) {
+            Log.e(TAG, "onReceive: applicationContext is not KikoApplication — aborting.")
+            return
+        }
+
+        val pending = AlarmStore.getPending(context)
+        if (pending.isEmpty()) {
+            Log.i(TAG, "onReceive [$action]: no pending alarms to reschedule.")
+            return
+        }
+
+        Log.i(TAG, "onReceive [$action]: rescheduling ${pending.size} alarm(s).")
+
+        for (record in pending) {
+            try {
+                app.alarmsApi.scheduleAlarm(
+                    alarmId     = record.alarmId,
+                    triggerAtMs = record.triggerAtMs,
+                    routeUri    = record.routeUri,
+                    title       = record.title,
+                    body        = record.body,
+                    isCallPlan  = record.isCallPlan,
+                )
+                Log.d(TAG, "  rescheduled: id=${record.alarmId} at=${record.triggerAtMs}")
+            } catch (e: Exception) {
+                Log.e(TAG, "  failed to reschedule ${record.alarmId}: $e")
+            }
+        }
     }
 }

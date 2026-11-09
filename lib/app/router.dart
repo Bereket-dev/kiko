@@ -7,6 +7,8 @@ import '../features/leads/lead_detail_screen.dart';
 import '../features/leads/add_edit_lead_screen.dart';
 import '../features/leads/merge_lead_screen.dart';
 import '../features/leads/paste_preview_screen.dart';
+import '../features/reminders/call_plan_screen.dart';
+import '../features/reminders/create_call_plan_screen.dart';
 import '../features/settings/permissions_wizard_screen.dart';
 import '../features/settings/settings_screen.dart';
 
@@ -38,6 +40,8 @@ class MergeRouteArgs {
 //   /recent-calls            → Recent calls list (Phase 5)
 //   /permissions-wizard      → Step-by-step permissions wizard (Phase 5)
 //   /settings                → App settings (Phase 5)
+//   /call-plan/new           → Create a new call-plan schedule (Phase 6)
+//   /call-plan/:scheduleId   → Call plan session screen (Phase 6)
 // ─────────────────────────────────────────────────────────────────────────────
 
 final appRouter = GoRouter(
@@ -101,6 +105,17 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (_, __) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/call-plan/new',
+      builder: (_, __) => const CreateCallPlanScreen(),
+    ),
+    GoRoute(
+      path: '/call-plan/:scheduleId',
+      builder: (_, state) {
+        final scheduleId = state.pathParameters['scheduleId']!;
+        return CallPlanScreen(scheduleId: scheduleId);
+      },
     ),
   ],
   errorBuilder: (_, state) => Scaffold(

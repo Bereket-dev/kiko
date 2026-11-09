@@ -23,11 +23,47 @@ void main() async {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AppLifecycleObserver
+// _scheduleReschedule
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Drains the native pending-events queue whenever the app returns to the
-// foreground.  Registered on the WidgetsBinding by KikoApp.
+// Re-arms all PENDING reminders and call-plan schedules whose native
+// AlarmManager entries may have been cleared while the process was dead
+// (e.g. after device reboot, force-stop, or OEM battery kill).
+//
+// Called both:
+//   • On cold start (addPostFrameCallback in _KikoAppState.initState)
+//   • On lifecycle resume (didChangeAppLifecycleState)
+//
+// The Kotlin BootReceiver handles re-scheduling on BOOT_COMPLETED using
+// AlarmStore (SharedPreferences), which covers the case where Flutter never
+// starts.  This Dart path is the safety net for any gap between native
+// reschedule and Dart state.
+//
+// Order: drain pending call events first so any status updates land in DB
+// before rescheduleAll reads reminder/schedule rows.
+// ─────────────────────────────────────────────────────────────────────────────
+
+Future<void> _rescheduleAll(WidgetRef ref) async {
+  // 1. Drain pending native call events first.
+  await ref.read(pendingDrainServiceProvider).drain();
+
+  // 2. Build leadId → name map for reminder notification titles.
+  final leads = await ref.read(leadsRepositoryProvider).watchAllLeads().first;
+  final leadNames = {for (final l in leads) l.id: l.name};
+
+  // 3. Re-arm reminders.
+  await ref.read(reminderServiceProvider).rescheduleAll(leadNames: leadNames);
+
+  // 4. Re-arm call-plan schedules.
+  await ref.read(callPlanServiceProvider).rescheduleAll();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _AppLifecycleObserver
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Triggers the full reschedule + drain whenever the app returns to the
+// foreground. Registered on the WidgetsBinding by KikoApp.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AppLifecycleObserver extends WidgetsBindingObserver {
@@ -38,8 +74,8 @@ class _AppLifecycleObserver extends WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Fire-and-forget; errors are handled inside drain().
-      _ref.read(pendingDrainServiceProvider).drain();
+      // Fire-and-forget; errors are handled inside each service.
+      _rescheduleAll(_ref);
     }
   }
 }
@@ -63,9 +99,10 @@ class _KikoAppState extends ConsumerState<KikoApp> {
     super.initState();
     _lifecycleObserver = _AppLifecycleObserver(ref);
     WidgetsBinding.instance.addObserver(_lifecycleObserver);
-    // Drain once on startup (cold start) as well.
+    // Run once on cold start after the first frame so the provider container
+    // is fully initialised before we read from it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(pendingDrainServiceProvider).drain();
+      _rescheduleAll(ref);
     });
   }
 

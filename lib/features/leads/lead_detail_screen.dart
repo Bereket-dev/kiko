@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/providers.dart';
 import '../../core/db/database.dart';
 import '../../core/models/lead_status.dart';
+import '../reminders/set_reminder_widget.dart';
 import 'status_chip.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,6 +48,7 @@ class LeadDetailScreen extends ConsumerWidget {
           imagesAsync: imagesAsync,
           onEdit: () => context.push('/leads/${lead.id}/edit'),
           onDelete: () => _confirmDelete(context, ref, lead),
+          onReminder: () => _openReminderSheet(context, ref, lead),
         );
       },
     );
@@ -79,6 +81,21 @@ class LeadDetailScreen extends ConsumerWidget {
       if (context.mounted) context.pop();
     }
   }
+
+  Future<void> _openReminderSheet(
+      BuildContext context, WidgetRef ref, Lead lead) async {
+    final existing = await ref
+        .read(remindersRepositoryProvider)
+        .getPendingReminderForLead(lead.id);
+    if (!context.mounted) return;
+    await showSetReminderSheet(
+      context: context,
+      ref: ref,
+      leadId: lead.id,
+      leadName: lead.name,
+      existing: existing,
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,6 +110,7 @@ class _LeadDetailView extends StatelessWidget {
     required this.imagesAsync,
     required this.onEdit,
     required this.onDelete,
+    required this.onReminder,
   });
 
   final Lead lead;
@@ -101,6 +119,7 @@ class _LeadDetailView extends StatelessWidget {
   final AsyncValue<List<LeadImage>> imagesAsync;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onReminder;
 
   @override
   Widget build(BuildContext context) {
@@ -119,8 +138,17 @@ class _LeadDetailView extends StatelessWidget {
           PopupMenuButton<String>(
             onSelected: (v) {
               if (v == 'delete') onDelete();
+              if (v == 'reminder') onReminder();
             },
             itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'reminder',
+                child: ListTile(
+                  leading: Icon(Icons.alarm_add_outlined),
+                  title: Text('Set Reminder'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
               const PopupMenuItem(
                 value: 'delete',
                 child: ListTile(

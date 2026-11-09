@@ -18,6 +18,32 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.BIND_SCREENING_SERVICE" />
 
+    <!-- ── Alarms ────────────────────────────────────────────────────────── -->
+    <!--
+        SCHEDULE_EXACT_ALARM  (API 31+, targetSdk 31-32):
+          Listed in manifest; user can revoke in Settings → Apps → Alarms.
+          Required for setExact / setExactAndAllowWhileIdle on API 31+.
+          NOT required for setAlarmClock (which is what we use).
+
+        USE_EXACT_ALARM  (API 33+, targetSdk 33+):
+          Automatic grant for apps in alarm/timer/clock/calendar category.
+          We declare both so either grant path works depending on targetSdk.
+
+        AlarmsApiImpl uses setAlarmClock() which does NOT need either permission
+        but we declare them as a belt-and-suspenders measure and so the Pigeon
+        shim can upgrade to setExactAndAllowWhileIdle if needed in future.
+    -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.USE_EXACT_ALARM"
+        android:minSdkVersion="33" />
+
+    <!-- Required to show full-screen intent notifications (Android 14+) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- Required so BootReceiver gets BOOT_COMPLETED -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:label="kiko"
         android:name="com.bereket.kiko.bridge.KikoApplication"
@@ -40,7 +66,28 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Deep-link handler: opens kiko:/<route> from alarm notifications -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="kiko" />
+            </intent-filter>
         </activity>
+
+        <!-- ── Alarm Receiver ─────────────────────────────────────────── -->
+        <!--
+            exported=true is required for AlarmManager to send the broadcast.
+            The custom action prevents other apps from triggering it
+            (the system verifies the sender is AlarmManager for setAlarmClock).
+        -->
+        <receiver
+            android:name="com.bereket.kiko.alarms.AlarmReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.bereket.kiko.ALARM" />
+            </intent-filter>
+        </receiver>
 
         <!-- ── Call Screening Service ─────────────────────────────────── -->
         <!--
@@ -63,12 +110,17 @@
             android:exported="false" />
 
         <!-- ── Boot Receiver ──────────────────────────────────────────── -->
+        <!--
+            Also listens for TIME_CHANGED so alarms are re-anchored when the
+            user manually changes the clock.
+        -->
         <receiver
             android:name="com.bereket.kiko.call.BootReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_CHANGED" />
             </intent-filter>
         </receiver>
 
