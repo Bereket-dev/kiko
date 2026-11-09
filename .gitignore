@@ -1,3 +1,6 @@
+# Local planning docs (not for version control)
+/docs/implementation-plan.md
+
 # Miscellaneous
 *.class
 *.log
