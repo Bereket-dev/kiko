@@ -50,6 +50,11 @@ dependencies:
 
   # URL launching (tel: intent)
   url_launcher: ^6.3.1
+  csv: ^8.0.0
+  excel: ^4.0.6
+  file_picker: ^11.0.3
+  share_plus: ^12.0.2
+  cross_file: ^0.3.5+5
 
 dev_dependencies:
   flutter_test:

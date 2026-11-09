@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/calls/recent_calls_screen.dart';
+import '../features/importexport/export_screen.dart';
+import '../features/importexport/import_wizard_screen.dart';
 import '../features/leads/leads_list_screen.dart';
 import '../features/leads/lead_detail_screen.dart';
 import '../features/leads/add_edit_lead_screen.dart';
@@ -9,6 +11,8 @@ import '../features/leads/merge_lead_screen.dart';
 import '../features/leads/paste_preview_screen.dart';
 import '../features/reminders/call_plan_screen.dart';
 import '../features/reminders/create_call_plan_screen.dart';
+import '../features/search/lead_filter.dart';
+import '../features/search/search_screen.dart';
 import '../features/settings/permissions_wizard_screen.dart';
 import '../features/settings/settings_screen.dart';
 
@@ -42,6 +46,9 @@ class MergeRouteArgs {
 //   /settings                → App settings (Phase 5)
 //   /call-plan/new           → Create a new call-plan schedule (Phase 6)
 //   /call-plan/:scheduleId   → Call plan session screen (Phase 6)
+//   /search                  → FTS5 search + filters (Phase 7)
+//   /export                  → Export screen (Phase 7) — extra: LeadFilter?
+//   /import                  → Import wizard (Phase 7)
 // ─────────────────────────────────────────────────────────────────────────────
 
 final appRouter = GoRouter(
@@ -116,6 +123,22 @@ final appRouter = GoRouter(
         final scheduleId = state.pathParameters['scheduleId']!;
         return CallPlanScreen(scheduleId: scheduleId);
       },
+    ),
+    // ── Phase 7 routes ──────────────────────────────────────────────────────
+    GoRoute(
+      path: '/search',
+      builder: (_, __) => const SearchScreen(),
+    ),
+    GoRoute(
+      path: '/export',
+      builder: (_, state) {
+        final filter = state.extra as LeadFilter?;
+        return ExportScreen(activeFilter: filter);
+      },
+    ),
+    GoRoute(
+      path: '/import',
+      builder: (_, __) => const ImportWizardScreen(),
     ),
   ],
   errorBuilder: (_, state) => Scaffold(

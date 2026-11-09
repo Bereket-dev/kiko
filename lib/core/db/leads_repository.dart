@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../features/search/lead_filter.dart';
 import '../db/database.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -502,24 +503,159 @@ class LeadsRepository {
 
   // ── FTS search ────────────────────────────────────────────────────────────
 
-  Future<List<Lead>> searchLeads(String query) async {
-    if (query.trim().isEmpty) return [];
+  /// Keyword-only FTS5 search (no structural filters).
+  Future<List<Lead>> searchLeads(String query) {
+    return queryLeads(LeadFilter(keyword: query));
+  }
 
+  /// Combined FTS5 keyword search + structural filters (Phase 7).
+  ///
+  /// Returns leads ordered by `updated_at DESC`. When [filter.keyword] is set,
+  /// FTS rank is preferred for the matching subset, then remaining filtered
+  /// leads follow by `updated_at`.
+  Future<List<Lead>> queryLeads(LeadFilter filter) async {
+    final variables = <Variable>[];
+    final where = <String>[];
+
+    if (!filter.includeArchived) {
+      where.add('l.archived = 0');
+    }
+
+    if (filter.statuses.isNotEmpty) {
+      final placeholders =
+          List.filled(filter.statuses.length, '?').join(', ');
+      where.add('l.status IN ($placeholders)');
+      for (final s in filter.statuses) {
+        variables.add(Variable.withString(s.dbValue));
+      }
+    }
+
+    if (filter.sources.isNotEmpty) {
+      final placeholders =
+          List.filled(filter.sources.length, '?').join(', ');
+      where.add('l.source IN ($placeholders)');
+      for (final s in filter.sources) {
+        variables.add(Variable.withString(s.dbValue));
+      }
+    }
+
+    if (filter.createdRange.startMs != null) {
+      where.add('l.created_at >= ?');
+      variables.add(Variable.withInt(filter.createdRange.startMs!));
+    }
+    if (filter.createdRange.endMs != null) {
+      where.add('l.created_at <= ?');
+      variables.add(Variable.withInt(filter.createdRange.endMs!));
+    }
+
+    if (filter.lastContactRange.startMs != null) {
+      where.add('l.last_contact_at IS NOT NULL AND l.last_contact_at >= ?');
+      variables.add(Variable.withInt(filter.lastContactRange.startMs!));
+    }
+    if (filter.lastContactRange.endMs != null) {
+      where.add('l.last_contact_at IS NOT NULL AND l.last_contact_at <= ?');
+      variables.add(Variable.withInt(filter.lastContactRange.endMs!));
+    }
+
+    if (filter.hasReminder == true) {
+      where.add(
+        'EXISTS (SELECT 1 FROM reminders r '
+        "WHERE r.lead_id = l.id AND r.state = 'PENDING')",
+      );
+    } else if (filter.hasReminder == false) {
+      where.add(
+        'NOT EXISTS (SELECT 1 FROM reminders r '
+        "WHERE r.lead_id = l.id AND r.state = 'PENDING')",
+      );
+    }
+
+    if (filter.callDirection != null) {
+      where.add(
+        'EXISTS (SELECT 1 FROM call_events c '
+        'WHERE c.lead_id = l.id AND c.call_type = ?)',
+      );
+      variables.add(Variable.withString(filter.callDirection!.dbValue));
+    }
+
+    List<String>? ftsOrderedIds;
+    final keyword = filter.keyword.trim();
+    if (keyword.isNotEmpty) {
+      ftsOrderedIds = await _ftsMatchIds(keyword);
+      if (ftsOrderedIds.isEmpty) return [];
+      final placeholders =
+          List.filled(ftsOrderedIds.length, '?').join(', ');
+      where.add('l.id IN ($placeholders)');
+      for (final id in ftsOrderedIds) {
+        variables.add(Variable.withString(id));
+      }
+    }
+
+    final sql = StringBuffer('SELECT l.id FROM leads l');
+    if (where.isNotEmpty) {
+      sql.write(' WHERE ${where.join(' AND ')}');
+    }
+    sql.write(' ORDER BY l.updated_at DESC');
+
+    final rows = await _db
+        .customSelect(sql.toString(), variables: variables)
+        .get();
+    final ids = rows
+        .map((r) => r.readNullable<String>('id'))
+        .whereType<String>()
+        .toList();
+    if (ids.isEmpty) return [];
+
+    final leads = await (_db.select(_db.leads)..where((t) => t.id.isIn(ids)))
+        .get();
+    final byId = {for (final l in leads) l.id: l};
+
+    // Preserve FTS rank when keyword used; otherwise keep updated_at order.
+    final order = ftsOrderedIds ?? ids;
+    return [
+      for (final id in order)
+        if (byId.containsKey(id)) byId[id]!,
+    ];
+  }
+
+  Future<List<String>> _ftsMatchIds(String query) async {
     final sanitised = query.trim().replaceAll('"', '""');
+    // Prefer prefix match; fall back to plain token for Ethiopic scripts
+    // where the tokenizer may not treat characters as Latin word units.
     final rows = await _db.customSelect(
       'SELECT lead_id FROM lead_search WHERE lead_search MATCH ? ORDER BY rank',
       variables: [Variable.withString('"$sanitised"*')],
     ).get();
 
-    final ids = rows
+    if (rows.isNotEmpty) {
+      return rows
+          .map((r) => r.readNullable<String>('lead_id'))
+          .whereType<String>()
+          .toList();
+    }
+
+    // Fallback without prefix wildcard (helps some Amharic token cases).
+    final fallback = await _db.customSelect(
+      'SELECT lead_id FROM lead_search WHERE lead_search MATCH ? ORDER BY rank',
+      variables: [Variable.withString(sanitised)],
+    ).get();
+    return fallback
         .map((r) => r.readNullable<String>('lead_id'))
         .whereType<String>()
         .toList();
-    if (ids.isEmpty) return [];
+  }
 
-    return (_db.select(_db.leads)
-          ..where((t) => t.id.isIn(ids)))
-        .get();
+  /// Returns every lead id that has a phone in [e164s], mapped e164 → leadId.
+  Future<Map<String, String>> mapPhonesToLeadIds(List<String> e164s) async {
+    if (e164s.isEmpty) return {};
+    final placeholders = List.filled(e164s.length, '?').join(', ');
+    final rows = await _db.customSelect(
+      'SELECT e164, lead_id FROM lead_phones WHERE e164 IN ($placeholders)',
+      variables: [for (final e in e164s) Variable.withString(e)],
+    ).get();
+    return {
+      for (final r in rows)
+        r.read<String>('e164'): r.read<String>('lead_id'),
+    };
   }
 
   // ── Internal: FTS rebuild (must be called inside a transaction) ───────────

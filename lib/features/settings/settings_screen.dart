@@ -164,6 +164,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SectionHeader(title: 'Data', theme: theme),
 
           ListTile(
+            leading: const Icon(Icons.upload_file_outlined),
+            title: const Text('Import leads'),
+            subtitle: const Text('Import from CSV or Excel file'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/import'),
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('Export leads'),
+            subtitle: const Text('Export to CSV or Excel'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/export'),
+          ),
+
+          ListTile(
             leading: Icon(Icons.block_outlined,
                 color: theme.colorScheme.error),
             title: const Text('Reset dismissed numbers'),

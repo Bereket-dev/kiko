@@ -22,20 +22,73 @@ class LeadsListScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Kiko'),
         actions: [
+          // Phase 7 — Search
           IconButton(
-            icon: const Icon(Icons.content_paste_outlined),
-            tooltip: 'Paste lead',
-            onPressed: () => context.push('/leads/paste'),
+            icon: const Icon(Icons.search_outlined),
+            tooltip: 'Search leads',
+            onPressed: () => context.push('/search'),
           ),
-          IconButton(
-            icon: const Icon(Icons.call_outlined),
-            tooltip: 'Recent calls',
-            onPressed: () => context.push('/recent-calls'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
+          // Overflow menu for secondary actions
+          PopupMenuButton<_AppBarAction>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (action) {
+              switch (action) {
+                case _AppBarAction.paste:
+                  context.push('/leads/paste');
+                case _AppBarAction.recentCalls:
+                  context.push('/recent-calls');
+                case _AppBarAction.import_:
+                  context.push('/import');
+                case _AppBarAction.export:
+                  context.push('/export');
+                case _AppBarAction.settings:
+                  context.push('/settings');
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: _AppBarAction.paste,
+                child: ListTile(
+                  leading: Icon(Icons.content_paste_outlined),
+                  title: Text('Paste lead'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: _AppBarAction.recentCalls,
+                child: ListTile(
+                  leading: Icon(Icons.call_outlined),
+                  title: Text('Recent calls'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuDivider(),
+              PopupMenuItem(
+                value: _AppBarAction.import_,
+                child: ListTile(
+                  leading: Icon(Icons.upload_file_outlined),
+                  title: Text('Import'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: _AppBarAction.export,
+                child: ListTile(
+                  leading: Icon(Icons.download_outlined),
+                  title: Text('Export'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuDivider(),
+              PopupMenuItem(
+                value: _AppBarAction.settings,
+                child: ListTile(
+                  leading: Icon(Icons.settings_outlined),
+                  title: Text('Settings'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -71,6 +124,8 @@ class LeadsListScreen extends ConsumerWidget {
     );
   }
 }
+
+enum _AppBarAction { paste, recentCalls, import_, export, settings }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _LeadTile

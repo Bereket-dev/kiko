@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -5,6 +6,7 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
+import 'package:sqlite3/open.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import 'tables.dart';
@@ -55,6 +57,8 @@ class AppDatabase extends _$AppDatabase {
   // ── FTS5 virtual table ───────────────────────────────────────────────────
 
   Future<void> _createFts5Table() async {
+    // Store content (not contentless): lead_id is UNINDEXED but must still be
+    // readable from MATCH results. content='' would leave every column NULL.
     await customStatement('''
       CREATE VIRTUAL TABLE IF NOT EXISTS lead_search
       USING fts5(
@@ -63,8 +67,7 @@ class AppDatabase extends _$AppDatabase {
         business_type,
         notes,
         phones,
-        sections,
-        content=''
+        sections
       )
     ''');
   }
@@ -154,5 +157,33 @@ QueryExecutor openEncryptedDatabase(String hexKey) {
 
 /// Opens an in-memory unencrypted database (for tests only).
 QueryExecutor openInMemoryDatabase() {
+  _ensureHostSqliteLoaded();
   return NativeDatabase.memory();
+}
+
+bool _hostSqliteOverrideApplied = false;
+
+/// Host Linux images often ship only the SONAME symlink
+/// (`libsqlite3.so.0`) without the unversioned `libsqlite3.so` that
+/// package:sqlite3 looks up by default.
+void _ensureHostSqliteLoaded() {
+  if (_hostSqliteOverrideApplied || !Platform.isLinux) return;
+  open.overrideFor(OperatingSystem.linux, () {
+    const candidates = [
+      'libsqlite3.so',
+      'libsqlite3.so.0',
+      '/usr/lib/x86_64-linux-gnu/libsqlite3.so.0',
+      '/usr/lib/aarch64-linux-gnu/libsqlite3.so.0',
+    ];
+    Object? lastError;
+    for (final path in candidates) {
+      try {
+        return DynamicLibrary.open(path);
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw StateError('Could not load libsqlite3: $lastError');
+  });
+  _hostSqliteOverrideApplied = true;
 }

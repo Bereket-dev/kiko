@@ -12,9 +12,11 @@ import '../core/settings/app_settings.dart';
 import '../core/utils/image_service.dart';
 import '../core/utils/lookup_index_service.dart';
 import '../features/calls/recording_scan_service.dart';
+import '../features/importexport/import_export_repository.dart';
 import '../features/reminders/alarm_service.dart';
 import '../features/reminders/call_plan_service.dart';
 import '../features/reminders/reminder_service.dart';
+import '../features/search/lead_filter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core providers — initialised in bootstrap() before ProviderScope mounts
@@ -233,6 +235,25 @@ final callPlanLeadsProvider =
 
   return result;
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 7 — Search + Import/Export providers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Import/Export repository (CSV, XLSX export + import with conflict resolution).
+final importExportRepositoryProvider =
+    Provider<ImportExportRepository>((ref) {
+  return ImportExportRepository(
+    leadsRepo: ref.watch(leadsRepositoryProvider),
+    callEventsRepo: ref.watch(callEventsRepositoryProvider),
+    remindersRepo: ref.watch(remindersRepositoryProvider),
+    lookupIndex: ref.watch(lookupIndexServiceProvider),
+  );
+});
+
+/// Active filter used by SearchScreen. Reset to empty when leaving search.
+final searchFilterProvider =
+    StateProvider<LeadFilter>((ref) => LeadFilter.empty);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Bootstrap result
