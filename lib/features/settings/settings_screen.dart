@@ -422,6 +422,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () => context.push('/permissions-wizard'),
           ),
 
+          // ── Recording consent notice ─────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Kiko does not record calls. It links to your phone\'s '
+                    'built-in call recordings. You are responsible for '
+                    'complying with local recording consent laws.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           const Divider(),
 
           // ── Cloud ──────────────────────────────────────────────────────────

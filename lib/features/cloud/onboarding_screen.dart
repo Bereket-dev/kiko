@@ -1257,7 +1257,33 @@ class _PermissionsStepState extends State<_PermissionsStep> {
             icon: Icons.notifications_outlined,
             label: 'Notifications — reminders & alerts',
           ),
-          const SizedBox(height: 36),
+          const SizedBox(height: 20),
+          // ── Recording consent ──────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Kiko does not record calls. It links to your phone\'s '
+                    'built-in call recordings. You are responsible for '
+                    'complying with local recording consent laws.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: FilledButton(

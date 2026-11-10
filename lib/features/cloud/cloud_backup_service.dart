@@ -227,13 +227,7 @@ class CloudBackupService {
 
       // ── 3. Hash check (skip if unchanged) ────────────────────────────────
 
-      final sha256 = Sha256();
-      final hashSink = sha256.newHashSink();
-      hashSink.add(jsonBytes);
-      hashSink.close();
-      final hashBytes = await hashSink.hash();
-      final newHash =
-          hashBytes.bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+      final newHash = await computeSnapshotHash(backupMap);
 
       if (!force && _settings.lastBackupHash == newHash) {
         return BackupResult.skipped();
@@ -450,10 +444,31 @@ class CloudBackupService {
 
   // ── schedulePeriodicBackup ────────────────────────────────────────────────
 
+  /// Computes the SHA-256 hex hash of a backup snapshot [backupMap].
+  ///
+  /// The hash is used for the skip-if-unchanged check: before uploading a new
+  /// backup, [runBackup] compares [computeSnapshotHash] against the previously
+  /// stored hash. When they match, the upload is skipped.
+  ///
+  /// Exposed as a static method so it can be unit-tested independently of
+  /// Firebase Auth / Storage.
+  static Future<String> computeSnapshotHash(Map<String, dynamic> backupMap) async {
+    final jsonString = jsonEncode(backupMap);
+    final jsonBytes = Uint8List.fromList(utf8.encode(jsonString));
+
+    final sha256 = Sha256();
+    final hashSink = sha256.newHashSink();
+    hashSink.add(jsonBytes);
+    hashSink.close();
+    final hashBytes = await hashSink.hash();
+    return hashBytes.bytes
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join();
+  }
+
   /// Registers a WorkManager periodic task that fires every 24 hours on a
   /// connected network (Wi-Fi only when [wifiOnly] is true).
-  static Future<void> schedulePeriodicBackup({bool wifiOnly = true}) async {
-    await Workmanager().registerPeriodicTask(
+  static Future<void> schedulePeriodicBackup({bool wifiOnly = true}) async {    await Workmanager().registerPeriodicTask(
       backupTaskUniqueName,
       backupTaskName,
       frequency: const Duration(hours: 24),
