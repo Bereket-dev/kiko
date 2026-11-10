@@ -477,7 +477,7 @@ class CloudBackupService {
             wifiOnly ? NetworkType.unmetered : NetworkType.connected,
         requiresCharging: false,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
       tag: backupTaskUniqueName,
     );
   }

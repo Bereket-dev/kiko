@@ -145,6 +145,7 @@ QueryExecutor openEncryptedDatabase(String hexKey) {
 
     if (Platform.isAndroid) {
       await applyWorkaroundToOpenSqlCipherOnOldAndroidVersions();
+      open.overrideFor(OperatingSystem.android, openCipherOnAndroid);
     }
 
     final cipherDb = sqlite3.open(file.path);
