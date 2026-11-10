@@ -28,12 +28,11 @@ class DefaultFirebaseOptions {
     }
   }
 
-  /// Placeholder Android options — replace via `flutterfire configure`.
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FIREBASE_API_KEY',
-    appId: '1:000000000000:android:0000000000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'kiko-replace-me',
-    storageBucket: 'kiko-replace-me.appspot.com',
+    apiKey: 'AIzaSyCuLxGdaIloGfIZtOyoeeoaqZNosWc5Ie0',
+    appId: '1:750029679953:android:3b8e0801cd776afba17770',
+    messagingSenderId: '750029679953',
+    projectId: 'kiko-b21f9',
+    storageBucket: 'kiko-b21f9.firebasestorage.app',
   );
 }

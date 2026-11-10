@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "kiko-replace-me",
-    "storage_bucket": "kiko-replace-me.appspot.com"
+    "project_number": "750029679953",
+    "project_id": "kiko-b21f9",
+    "storage_bucket": "kiko-b21f9.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:750029679953:android:3b8e0801cd776afba17770",
         "android_client_info": {
           "package_name": "com.bereket.kiko"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "REPLACE_WITH_FIREBASE_API_KEY"
+          "current_key": "AIzaSyCuLxGdaIloGfIZtOyoeeoaqZNosWc5Ie0"
         }
       ],
       "services": {
