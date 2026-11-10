@@ -18,10 +18,22 @@ const _kRecordingsFolderUri = 'setting_recordings_folder_uri';
 const _kPinSetupOffered = 'setting_pin_setup_offered';
 const _kFlagSecureEnabled = 'setting_flag_secure';
 
+// Cloud / onboarding keys
+const _kOnboardingComplete = 'setting_onboarding_complete';
+const _kCloudUserEmail = 'setting_cloud_user_email';
+const _kLastBackupHash = 'setting_last_backup_hash';
+const _kBackupWifiOnly = 'setting_backup_wifi_only';
+const _kDevicesRegistered = 'setting_devices_registered';
+
 // Secure keys
 const _kPinHash = 'secure_pin_hash';
 const _kPinSalt = 'secure_pin_salt';
 const _kDeviceId = 'secure_device_id';
+
+// Secure cloud keys
+const _kDataKeyB64 = 'secure_data_key_b64';
+const _kWrappedKeyB64 = 'secure_wrapped_key_b64';
+const _kRecoveryCodeHash = 'secure_recovery_code_hash';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AppSettings
@@ -149,6 +161,92 @@ class AppSettings {
   Future<String?> getDeviceId() => _secure.read(key: _kDeviceId);
 
   Future<void> clearDeviceId() => _secure.delete(key: _kDeviceId);
+
+  // ── Onboarding ────────────────────────────────────────────────────────────
+
+  bool get onboardingComplete =>
+      _prefs.getBool(_kOnboardingComplete) ?? false;
+  Future<void> setOnboardingComplete(bool v) =>
+      _prefs.setBool(_kOnboardingComplete, v);
+
+  // ── Cloud user ────────────────────────────────────────────────────────────
+
+  String? get cloudUserEmail => _prefs.getString(_kCloudUserEmail);
+  Future<void> setCloudUserEmail(String? email) async {
+    if (email == null) {
+      await _prefs.remove(_kCloudUserEmail);
+    } else {
+      await _prefs.setString(_kCloudUserEmail, email);
+    }
+  }
+
+  // ── Backup hash (change-detection) ───────────────────────────────────────
+
+  /// SHA-256 hex of the last successfully uploaded snapshot.
+  /// Null if no backup has been completed yet.
+  String? get lastBackupHash => _prefs.getString(_kLastBackupHash);
+  Future<void> setLastBackupHash(String? hash) async {
+    if (hash == null) {
+      await _prefs.remove(_kLastBackupHash);
+    } else {
+      await _prefs.setString(_kLastBackupHash, hash);
+    }
+  }
+
+  // ── Backup Wi-Fi only ─────────────────────────────────────────────────────
+
+  bool get backupWifiOnly => _prefs.getBool(_kBackupWifiOnly) ?? true;
+  Future<void> setBackupWifiOnly(bool v) =>
+      _prefs.setBool(_kBackupWifiOnly, v);
+
+  // ── Devices registered ────────────────────────────────────────────────────
+
+  int get devicesRegistered => _prefs.getInt(_kDevicesRegistered) ?? 0;
+  Future<void> setDevicesRegistered(int count) =>
+      _prefs.setInt(_kDevicesRegistered, count);
+
+  // ── Data key (secure storage) ─────────────────────────────────────────────
+
+  /// Base64-encoded 32-byte device data key.
+  Future<String?> getDataKeyB64() => _secure.read(key: _kDataKeyB64);
+  Future<void> setDataKeyB64(String b64) =>
+      _secure.write(key: _kDataKeyB64, value: b64);
+  Future<void> clearDataKey() => _secure.delete(key: _kDataKeyB64);
+
+  // ── Wrapped key (secure storage) ──────────────────────────────────────────
+
+  /// Base64-encoded recovery-code-wrapped copy of the data key.
+  Future<String?> getWrappedKeyB64() => _secure.read(key: _kWrappedKeyB64);
+  Future<void> setWrappedKeyB64(String b64) =>
+      _secure.write(key: _kWrappedKeyB64, value: b64);
+  Future<void> clearWrappedKey() => _secure.delete(key: _kWrappedKeyB64);
+
+  // ── Recovery code hash (secure storage) ───────────────────────────────────
+
+  /// Bcrypt/SHA-256 hash of the recovery code for local verification.
+  Future<String?> getRecoveryCodeHash() =>
+      _secure.read(key: _kRecoveryCodeHash);
+  Future<void> setRecoveryCodeHash(String hash) =>
+      _secure.write(key: _kRecoveryCodeHash, value: hash);
+  Future<void> clearRecoveryCodeHash() =>
+      _secure.delete(key: _kRecoveryCodeHash);
+
+  // ── Clear cloud state (keeps PIN, language, overlay) ─────────────────────
+
+  /// Removes only cloud-related prefs and secure keys.
+  /// Does NOT touch PIN, language, overlay/ask settings, or device ID.
+  Future<void> clearCloudState() async {
+    await Future.wait([
+      _prefs.remove(_kCloudUserEmail),
+      _prefs.remove(_kLastBackupHash),
+      _prefs.remove(_kBackupWifiOnly),
+      _prefs.remove(_kDevicesRegistered),
+      _prefs.remove(_kOnboardingComplete),
+      _secure.delete(key: _kDataKeyB64),
+      _secure.delete(key: _kWrappedKeyB64),
+      _secure.delete(key: _kRecoveryCodeHash),
+    ]);
+  }
 
   // ── Full wipe (account deletion) ─────────────────────────────────────────
 

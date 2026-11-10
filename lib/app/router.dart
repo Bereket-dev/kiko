@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/calls/recent_calls_screen.dart';
+import '../features/cloud/backup_screen.dart';
+import '../features/cloud/devices_screen.dart';
+import '../features/cloud/onboarding_screen.dart';
 import '../features/importexport/export_screen.dart';
 import '../features/importexport/import_wizard_screen.dart';
 import '../features/leads/leads_list_screen.dart';
@@ -56,6 +59,9 @@ class MergeRouteArgs {
 //   /export                  → Export screen (Phase 7) — extra: LeadFilter?
 //   /import                  → Import wizard (Phase 7)
 //   /pin-setup               → PIN setup/change screen (Phase 8)
+//   /onboarding              → Onboarding flow (Phase 9)
+//   /devices                 → Device management screen (Phase 9)
+//   /backup                  → Backup & restore screen (Phase 9)
 // ─────────────────────────────────────────────────────────────────────────────
 
 final appRouter = GoRouter(
@@ -159,6 +165,21 @@ final appRouter = GoRouter(
           allowSkip: !isChanging,
         );
       },
+    ),
+    // ── Phase 9 routes ──────────────────────────────────────────────────────
+    GoRoute(
+      path: '/onboarding',
+      builder: (context, _) => OnboardingScreen(
+        onComplete: () => context.go('/'),
+      ),
+    ),
+    GoRoute(
+      path: '/devices',
+      builder: (_, _) => const DevicesScreen(),
+    ),
+    GoRoute(
+      path: '/backup',
+      builder: (_, _) => const BackupScreen(),
     ),
   ],
   errorBuilder: (_, state) => Scaffold(

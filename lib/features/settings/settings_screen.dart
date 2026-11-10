@@ -213,6 +213,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  // ── Delete account ────────────────────────────────────────────────────────
+
+  Future<void> _onDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This permanently deletes your cloud backups, device registry, '
+          'and Firebase account, then wipes local data on this device.\n\n'
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(deleteAccountServiceProvider).deleteAccount();
+      if (!mounted) return;
+      context.go('/onboarding');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Delete failed: $e')),
+      );
+    }
+  }
+
   // ── Calendar ──────────────────────────────────────────────────────────────
 
   Future<void> _onCalendarModeChange() async {
@@ -379,6 +420,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: const Text('Grant or review required permissions'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/permissions-wizard'),
+          ),
+
+          const Divider(),
+
+          // ── Cloud ──────────────────────────────────────────────────────────
+          _SectionHeader(title: 'Cloud', theme: theme),
+
+          ListTile(
+            leading: const Icon(Icons.cloud_outlined),
+            title: const Text('Backup & restore'),
+            subtitle: Text(
+              settings.cloudUserEmail ?? 'Encrypted cloud backup',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/backup'),
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.devices_outlined),
+            title: const Text('Devices'),
+            subtitle: const Text('Manage registered devices (max 2)'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/devices'),
+          ),
+
+          ListTile(
+            leading: Icon(Icons.delete_forever_outlined,
+                color: theme.colorScheme.error),
+            title: Text(
+              'Delete account',
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
+            subtitle: const Text(
+                'Permanently erase cloud data and wipe this device'),
+            onTap: _onDeleteAccount,
           ),
 
           const Divider(),

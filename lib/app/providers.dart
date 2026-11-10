@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,6 +13,11 @@ import '../core/settings/app_settings.dart';
 import '../core/utils/image_service.dart';
 import '../core/utils/lookup_index_service.dart';
 import '../features/calls/recording_scan_service.dart';
+import '../features/cloud/cloud_auth_service.dart';
+import '../features/cloud/cloud_backup_service.dart';
+import '../features/cloud/cloud_device_service.dart';
+import '../features/cloud/delete_account_service.dart';
+import '../features/cloud/e2e_key_service.dart';
 import '../features/importexport/import_export_repository.dart';
 import '../features/reminders/alarm_service.dart';
 import '../features/reminders/call_plan_service.dart';
@@ -269,6 +275,47 @@ final pinServiceProvider = Provider<PinService>((ref) {
 /// Watching this triggers a rebuild of [KikoApp], switching the locale.
 final localePrefProvider = StateProvider<String>((ref) {
   return ref.watch(appSettingsProvider).language;
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 9 — Cloud providers
+// ─────────────────────────────────────────────────────────────────────────────
+
+final cloudAuthServiceProvider = Provider<CloudAuthService>((ref) {
+  return CloudAuthService();
+});
+
+final e2eKeyServiceProvider = Provider<E2EKeyService>((ref) {
+  return E2EKeyService(ref.watch(appSettingsProvider));
+});
+
+final cloudDeviceServiceProvider = Provider<CloudDeviceService>((ref) {
+  return CloudDeviceService(ref.watch(appSettingsProvider));
+});
+
+final cloudBackupServiceProvider = Provider<CloudBackupService>((ref) {
+  return CloudBackupService(
+    db: ref.watch(appDatabaseProvider),
+    settings: ref.watch(appSettingsProvider),
+    keyService: ref.watch(e2eKeyServiceProvider),
+  );
+});
+
+final deleteAccountServiceProvider = Provider<DeleteAccountService>((ref) {
+  return DeleteAccountService(
+    settings: ref.watch(appSettingsProvider),
+    db: ref.watch(appDatabaseProvider),
+  );
+});
+
+/// Stream of Firebase Auth state changes.
+final authStateProvider = StreamProvider<User?>((ref) {
+  return ref.watch(cloudAuthServiceProvider).authStateChanges;
+});
+
+/// True once onboarding is complete.
+final onboardingCompleteProvider = Provider<bool>((ref) {
+  return ref.watch(appSettingsProvider).onboardingComplete;
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
