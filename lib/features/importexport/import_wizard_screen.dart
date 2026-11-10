@@ -45,7 +45,7 @@ class _ImportWizardScreenState
   String? _parseError;
 
   // Step 3 – conflict resolution
-  Map<int, ImportConflictAction> _actions = {};
+  final Map<int, ImportConflictAction> _actions = {};
   ImportApplyAllPolicy _applyAllPolicy =
       ImportApplyAllPolicy.keepExisting;
   bool _applyAllSet = false;
@@ -369,7 +369,7 @@ class _StepColumnMap extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               itemCount: canonicalKeys.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const Divider(height: 1),
               itemBuilder: (context, i) {
                 final key = canonicalKeys[i];

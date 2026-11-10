@@ -17,6 +17,7 @@ import '../features/reminders/alarm_service.dart';
 import '../features/reminders/call_plan_service.dart';
 import '../features/reminders/reminder_service.dart';
 import '../features/search/lead_filter.dart';
+import '../features/security/pin_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core providers — initialised in bootstrap() before ProviderScope mounts
@@ -254,6 +255,21 @@ final importExportRepositoryProvider =
 /// Active filter used by SearchScreen. Reset to empty when leaving search.
 final searchFilterProvider =
     StateProvider<LeadFilter>((ref) => LeadFilter.empty);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 8 — Security & Localisation providers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// PIN service singleton — holds in-memory lockout state.
+final pinServiceProvider = Provider<PinService>((ref) {
+  return PinService(ref.watch(appSettingsProvider));
+});
+
+/// Currently active locale code ("en" or "am").
+/// Watching this triggers a rebuild of [KikoApp], switching the locale.
+final localePrefProvider = StateProvider<String>((ref) {
+  return ref.watch(appSettingsProvider).language;
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Bootstrap result

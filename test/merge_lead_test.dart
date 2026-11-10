@@ -42,7 +42,7 @@ void main() {
 
   // ── Fixtures ───────────────────────────────────────────────────────────────
 
-  Future<Lead> _seedLead({
+  Future<Lead> seedLead({
     String name = 'Abebe Kebede',
     String? businessType = 'Retailer',
     List<String> e164s = const ['+251911000001'],
@@ -75,7 +75,7 @@ void main() {
     });
 
     test('detects single duplicate', () async {
-      final existing = await _seedLead(e164s: ['+251911000001']);
+      final existing = await seedLead(e164s: ['+251911000001']);
       final dupes =
           await repo.findDuplicatesByPhones(['+251911000001']);
       expect(dupes.length, 1);
@@ -83,7 +83,7 @@ void main() {
     });
 
     test('detects duplicate from multiple phones', () async {
-      final existing = await _seedLead(
+      final existing = await seedLead(
           e164s: ['+251911000001', '+251922000002']);
       final dupes =
           await repo.findDuplicatesByPhones(['+251922000002']);
@@ -92,7 +92,7 @@ void main() {
     });
 
     test('excludes self when editing (excludeLeadId)', () async {
-      final existing = await _seedLead(e164s: ['+251911000001']);
+      final existing = await seedLead(e164s: ['+251911000001']);
       final dupes = await repo.findDuplicatesByPhones(
         ['+251911000001'],
         excludeLeadId: existing.id,
@@ -101,8 +101,8 @@ void main() {
     });
 
     test('returns multiple duplicates when several leads share numbers', () async {
-      final l1 = await _seedLead(name: 'A', e164s: ['+251911000001']);
-      final l2 = await _seedLead(name: 'B', e164s: ['+251922000002']);
+      final l1 = await seedLead(name: 'A', e164s: ['+251911000001']);
+      final l2 = await seedLead(name: 'B', e164s: ['+251922000002']);
       final dupes = await repo.findDuplicatesByPhones(
           ['+251911000001', '+251922000002']);
       final ids = dupes.map((d) => d.id).toSet();
@@ -110,7 +110,7 @@ void main() {
     });
 
     test('returns empty for phones not in DB', () async {
-      await _seedLead(e164s: ['+251911000001']);
+      await seedLead(e164s: ['+251911000001']);
       final dupes =
           await repo.findDuplicatesByPhones(['+251999999999']);
       expect(dupes, isEmpty);
@@ -121,7 +121,7 @@ void main() {
 
   group('mergeLead', () {
     test('overwrites name when provided', () async {
-      final target = await _seedLead(name: 'Old Name');
+      final target = await seedLead(name: 'Old Name');
       await repo.mergeLead(
         targetLeadId: target.id,
         name: 'New Name',
@@ -135,7 +135,7 @@ void main() {
     });
 
     test('keeps existing name when name is null', () async {
-      final target = await _seedLead(name: 'Existing Name');
+      final target = await seedLead(name: 'Existing Name');
       await repo.mergeLead(
         targetLeadId: target.id,
         name: null, // no override
@@ -149,7 +149,7 @@ void main() {
     });
 
     test('replaces phones with merged set', () async {
-      final target = await _seedLead(
+      final target = await seedLead(
           e164s: ['+251911000001', '+251922000002']);
       await repo.mergeLead(
         targetLeadId: target.id,
@@ -166,7 +166,7 @@ void main() {
     });
 
     test('replaces sections with ordered merged list', () async {
-      final target = await _seedLead(sections: [
+      final target = await seedLead(sections: [
         (title: 'Old Section', body: 'Old body'),
       ]);
       await repo.mergeLead(
@@ -186,7 +186,7 @@ void main() {
     });
 
     test('updates status when provided', () async {
-      final target = await _seedLead(status: 'NEW');
+      final target = await seedLead(status: 'NEW');
       await repo.mergeLead(
         targetLeadId: target.id,
         status: 'WON',
@@ -200,7 +200,7 @@ void main() {
     });
 
     test('returns a valid MergeSnapshot capturing pre-merge state', () async {
-      final target = await _seedLead(
+      final target = await seedLead(
         name: 'Before',
         businessType: 'Retailer',
         e164s: ['+251911000001'],
@@ -232,7 +232,7 @@ void main() {
   group('undoMerge', () {
     test('restores lead to pre-merge state (name, status, phones, sections)',
         () async {
-      final target = await _seedLead(
+      final target = await seedLead(
         name: 'Original',
         status: 'CONTACTED',
         e164s: ['+251911000001'],
@@ -280,7 +280,7 @@ void main() {
 
     test('undo is idempotent: second undo from same snapshot re-restores',
         () async {
-      final target = await _seedLead(name: 'Start');
+      final target = await seedLead(name: 'Start');
       final snap = await repo.mergeLead(
         targetLeadId: target.id,
         name: 'After Merge',
@@ -304,7 +304,7 @@ void main() {
       // the lead's name is correctly restored, which requires the FTS transaction
       // to commit without error. A full FTS5 MATCH test requires a device with
       // SQLCipher; see Phase 10 integration tests.
-      final target = await _seedLead(name: 'FindMe');
+      final target = await seedLead(name: 'FindMe');
       final snap = await repo.mergeLead(
         targetLeadId: target.id,
         name: 'NotFindMe',
@@ -331,7 +331,7 @@ void main() {
     late Lead fakeLead;
 
     setUp(() async {
-      fakeLead = await _seedLead(
+      fakeLead = await seedLead(
           name: 'Existing Lead', e164s: ['+251911000001']);
     });
 
@@ -521,7 +521,7 @@ void main() {
     });
 
     testWidgets('radio selector shown for multiple duplicates', (tester) async {
-      final lead2 = await _seedLead(
+      final lead2 = await seedLead(
           name: 'Second Lead', e164s: ['+251922000002']);
 
       await tester.pumpWidget(
@@ -558,7 +558,7 @@ void main() {
     late List<LeadSection> existingSections;
 
     setUp(() async {
-      targetLead = await _seedLead(
+      targetLead = await seedLead(
         name: 'Target Lead',
         businessType: 'Wholesaler',
         status: 'CONTACTED',
@@ -569,7 +569,7 @@ void main() {
       existingSections = await repo.getSectionsForLead(targetLead.id);
     });
 
-    Widget _buildScreen({
+    Widget buildScreen({
       LeadDraft? draft,
       List<({String e164, String? label, bool isPrimary})>? draftPhones,
     }) {
@@ -604,13 +604,13 @@ void main() {
     }
 
     testWidgets('renders AppBar with Merge title', (tester) async {
-      await tester.pumpWidget(_buildScreen());
+      await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
       expect(find.text('Merge Lead'), findsOneWidget);
     });
 
     testWidgets('displays existing and draft column headers', (tester) async {
-      await tester.pumpWidget(_buildScreen());
+      await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
       expect(find.text('Existing'), findsWidgets);
       expect(find.text('Draft'), findsWidgets);
@@ -618,14 +618,14 @@ void main() {
 
     testWidgets('shows both existing and draft phone in phone list',
         (tester) async {
-      await tester.pumpWidget(_buildScreen());
+      await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
       expect(find.text('+251911000001'), findsOneWidget);
       expect(find.text('+251922000002'), findsOneWidget);
     });
 
     testWidgets('shows existing section in sections panel', (tester) async {
-      await tester.pumpWidget(_buildScreen());
+      await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
       // Scroll down to find sections
       await tester.scrollUntilVisible(
@@ -636,7 +636,7 @@ void main() {
     });
 
     testWidgets('quick action chips are rendered', (tester) async {
-      await tester.pumpWidget(_buildScreen());
+      await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
       expect(find.text('Keep existing'), findsOneWidget);
       expect(find.text('Take from draft'), findsOneWidget);
@@ -644,7 +644,7 @@ void main() {
     });
 
     testWidgets('Merge button exists in AppBar', (tester) async {
-      await tester.pumpWidget(_buildScreen());
+      await tester.pumpWidget(buildScreen());
       await tester.pumpAndSettle();
       expect(find.text('Merge'), findsOneWidget);
     });

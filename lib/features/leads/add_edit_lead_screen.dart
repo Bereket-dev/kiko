@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../app/providers.dart';
 import '../../core/models/lead_status.dart';
+import '../../core/utils/secure_flag.dart';
 import '../../features/parser/phone_normalizer.dart';
 import 'duplicate_detection_dialog.dart';
 import 'lead_draft.dart';
@@ -136,8 +137,11 @@ class _AddEditLeadScreenState extends ConsumerState<AddEditLeadScreen> {
     }
 
     final businessTypesAsync = ref.watch(businessTypesProvider);
+    final flagSecure = ref.watch(appSettingsProvider).flagSecureEnabled;
 
-    return Scaffold(
+    return SecureFlagScope(
+      enabled: flagSecure,
+      child: Scaffold(
       appBar: AppBar(
         title: Text(widget.isEdit ? 'Edit Lead' : 'Add Lead'),
         actions: [
@@ -255,7 +259,8 @@ class _AddEditLeadScreenState extends ConsumerState<AddEditLeadScreen> {
           ],
         ),
       ),
-    );
+    ), // Scaffold
+    ); // SecureFlagScope
   }
 
   // ── Image picking ─────────────────────────────────────────────────────────
@@ -366,6 +371,7 @@ class _AddEditLeadScreenState extends ConsumerState<AddEditLeadScreen> {
       final draftE164s = e164s.toSet();
       final canSaveAsSeparate = draftE164s.intersection(allExistingE164s).isEmpty;
 
+      if (!mounted) return;
       final result = await DuplicateDetectionDialog.show(
         context,
         draft: _draft,
@@ -401,6 +407,7 @@ class _AddEditLeadScreenState extends ConsumerState<AddEditLeadScreen> {
           _draft.businessType = businessType;
           _draft.notes = notes;
 
+          if (!mounted) return;
           await Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => MergeLeadScreen(

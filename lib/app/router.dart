@@ -13,8 +13,14 @@ import '../features/reminders/call_plan_screen.dart';
 import '../features/reminders/create_call_plan_screen.dart';
 import '../features/search/lead_filter.dart';
 import '../features/search/search_screen.dart';
+import '../features/security/pin_setup_screen.dart';
 import '../features/settings/permissions_wizard_screen.dart';
 import '../features/settings/settings_screen.dart';
+
+/// A [GlobalKey] for the app's root Navigator.
+///
+/// Used by [KikoApp] to push the first-launch PIN setup screen imperatively.
+final appNavigatorKey = GlobalKey<NavigatorState>();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MergeRouteArgs — typed extras for /leads/merge
@@ -49,11 +55,13 @@ class MergeRouteArgs {
 //   /search                  → FTS5 search + filters (Phase 7)
 //   /export                  → Export screen (Phase 7) — extra: LeadFilter?
 //   /import                  → Import wizard (Phase 7)
+//   /pin-setup               → PIN setup/change screen (Phase 8)
 // ─────────────────────────────────────────────────────────────────────────────
 
 final appRouter = GoRouter(
   initialLocation: '/',
   debugLogDiagnostics: false,
+  navigatorKey: appNavigatorKey,
   routes: [
     GoRoute(
       path: '/',
@@ -103,19 +111,19 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/recent-calls',
-      builder: (_, __) => const RecentCallsScreen(),
+      builder: (_, _) => const RecentCallsScreen(),
     ),
     GoRoute(
       path: '/permissions-wizard',
-      builder: (_, __) => const PermissionsWizardScreen(),
+      builder: (_, _) => const PermissionsWizardScreen(),
     ),
     GoRoute(
       path: '/settings',
-      builder: (_, __) => const SettingsScreen(),
+      builder: (_, _) => const SettingsScreen(),
     ),
     GoRoute(
       path: '/call-plan/new',
-      builder: (_, __) => const CreateCallPlanScreen(),
+      builder: (_, _) => const CreateCallPlanScreen(),
     ),
     GoRoute(
       path: '/call-plan/:scheduleId',
@@ -127,7 +135,7 @@ final appRouter = GoRouter(
     // ── Phase 7 routes ──────────────────────────────────────────────────────
     GoRoute(
       path: '/search',
-      builder: (_, __) => const SearchScreen(),
+      builder: (_, _) => const SearchScreen(),
     ),
     GoRoute(
       path: '/export',
@@ -138,7 +146,19 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/import',
-      builder: (_, __) => const ImportWizardScreen(),
+      builder: (_, _) => const ImportWizardScreen(),
+    ),
+    // ── Phase 8 routes ──────────────────────────────────────────────────────
+    GoRoute(
+      path: '/pin-setup',
+      builder: (_, state) {
+        final isChanging = state.uri.queryParameters['mode'] == 'change';
+        return PinSetupScreen(
+          isChanging: isChanging,
+          onComplete: () {},
+          allowSkip: !isChanging,
+        );
+      },
     ),
   ],
   errorBuilder: (_, state) => Scaffold(

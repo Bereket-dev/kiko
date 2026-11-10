@@ -15,6 +15,8 @@ const _kLastBackupMs = 'setting_last_backup_ms';
 const _kAutoLockTimeoutMs = 'setting_auto_lock_timeout_ms';
 const _kCalendarDisplayMode = 'setting_calendar_mode';
 const _kRecordingsFolderUri = 'setting_recordings_folder_uri';
+const _kPinSetupOffered = 'setting_pin_setup_offered';
+const _kFlagSecureEnabled = 'setting_flag_secure';
 
 // Secure keys
 const _kPinHash = 'secure_pin_hash';
@@ -91,11 +93,25 @@ class AppSettings {
 
   // ── Calendar display ──────────────────────────────────────────────────────
 
-  /// "ET" = Ethiopian, "GR" = Gregorian
+  /// "ET" = Ethiopian, "GR" = Gregorian, "BOTH" = Ethiopian + Gregorian
   String get calendarDisplayMode =>
       _prefs.getString(_kCalendarDisplayMode) ?? 'ET';
   Future<void> setCalendarDisplayMode(String mode) =>
       _prefs.setString(_kCalendarDisplayMode, mode);
+
+  // ── First-launch PIN setup ────────────────────────────────────────────────
+
+  /// True once the skippable first-launch PIN screen has been shown.
+  bool get pinSetupOffered => _prefs.getBool(_kPinSetupOffered) ?? false;
+  Future<void> setPinSetupOffered(bool v) =>
+      _prefs.setBool(_kPinSetupOffered, v);
+
+  // ── FLAG_SECURE (screenshot protection) ───────────────────────────────────
+
+  /// When true, lead screens set Android FLAG_SECURE.
+  bool get flagSecureEnabled => _prefs.getBool(_kFlagSecureEnabled) ?? false;
+  Future<void> setFlagSecureEnabled(bool v) =>
+      _prefs.setBool(_kFlagSecureEnabled, v);
 
   // ── Recordings folder ─────────────────────────────────────────────────────
 

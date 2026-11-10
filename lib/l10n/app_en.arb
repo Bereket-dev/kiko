@@ -1,5 +1,306 @@
 {
   "@@locale": "en",
+
   "appTitle": "Kiko",
-  "@appTitle": {"description": "App title"}
+  "@appTitle": {"description": "App title"},
+
+  "settings": "Settings",
+  "@settings": {"description": "Settings screen title"},
+
+  "save": "Save",
+  "@save": {"description": "Generic save action"},
+
+  "cancel": "Cancel",
+  "@cancel": {"description": "Generic cancel action"},
+
+  "delete": "Delete",
+  "@delete": {"description": "Generic delete action"},
+
+  "edit": "Edit",
+  "@edit": {"description": "Generic edit action"},
+
+  "confirm": "Confirm",
+  "@confirm": {"description": "Generic confirm action"},
+
+  "skip": "Skip",
+  "@skip": {"description": "Skip action (first-launch setup)"},
+
+  "ok": "OK",
+  "@ok": {"description": "Generic OK button"},
+
+  "done": "Done",
+  "@done": {"description": "Generic done action"},
+
+  "search": "Search",
+  "@search": {"description": "Search action / screen title"},
+
+  "leads": "Leads",
+  "@leads": {"description": "Leads list screen title"},
+
+  "recentCalls": "Recent Calls",
+  "@recentCalls": {"description": "Recent calls screen title"},
+
+  "callPlan": "Call Plan",
+  "@callPlan": {"description": "Call plan screen title"},
+
+  "export": "Export",
+  "@export": {"description": "Export action/screen title"},
+
+  "import": "Import",
+  "@import": {"description": "Import action/screen title"},
+
+  "importLeads": "Import Leads",
+  "@importLeads": {"description": "Import leads list tile title"},
+
+  "exportLeads": "Export Leads",
+  "@exportLeads": {"description": "Export leads list tile title"},
+
+  "permissions": "Permissions",
+  "@permissions": {"description": "Permissions section/screen title"},
+
+  "overlay": "Overlay",
+  "@overlay": {"description": "Overlay settings section title"},
+
+  "calls": "Calls",
+  "@calls": {"description": "Calls settings section title"},
+
+  "data": "Data",
+  "@data": {"description": "Data settings section title"},
+
+  "about": "About",
+  "@about": {"description": "About settings section title"},
+
+  "version": "Version",
+  "@version": {"description": "App version label"},
+
+  "showCallerOverlay": "Show caller overlay",
+  "@showCallerOverlay": {"description": "Overlay master toggle title"},
+
+  "showCallerOverlaySubtitle": "Display lead info during incoming calls",
+  "@showCallerOverlaySubtitle": {"description": "Overlay master toggle subtitle"},
+
+  "showCallHistory": "Show call history",
+  "@showCallHistory": {"description": "Overlay history toggle title"},
+
+  "showCallHistorySubtitle": "Include last note and last call date in overlay",
+  "@showCallHistorySubtitle": {"description": "Overlay history toggle subtitle"},
+
+  "askUnknownCallers": "Ask about unknown callers",
+  "@askUnknownCallers": {"description": "Ask unknown toggle title"},
+
+  "askUnknownCallersSubtitle": "Show \"Is this a lead?\" dialog for unrecognised numbers",
+  "@askUnknownCallersSubtitle": {"description": "Ask unknown toggle subtitle"},
+
+  "resetDismissedNumbers": "Reset dismissed numbers",
+  "@resetDismissedNumbers": {"description": "Reset dismissed numbers list tile title"},
+
+  "resetDismissedNumbersSubtitle": "Start asking again about previously dismissed callers",
+  "@resetDismissedNumbersSubtitle": {"description": "Reset dismissed numbers subtitle"},
+
+  "resetDismissedNumbersConfirmTitle": "Reset dismissed numbers?",
+  "@resetDismissedNumbersConfirmTitle": {"description": "Confirm dialog title"},
+
+  "resetDismissedNumbersConfirmBody": "Kiko will start asking again whether unknown callers you previously dismissed are leads.",
+  "@resetDismissedNumbersConfirmBody": {"description": "Confirm dialog body"},
+
+  "viewRecentCalls": "Recent calls",
+  "@viewRecentCalls": {"description": "Recent calls list tile title"},
+
+  "viewRecentCallsSubtitle": "View call log and add leads",
+  "@viewRecentCallsSubtitle": {"description": "Recent calls list tile subtitle"},
+
+  "viewPermissions": "Permissions",
+  "@viewPermissions": {"description": "Permissions list tile title"},
+
+  "viewPermissionsSubtitle": "Grant or review required permissions",
+  "@viewPermissionsSubtitle": {"description": "Permissions list tile subtitle"},
+
+  "importLeadsSubtitle": "Import from CSV or Excel file",
+  "@importLeadsSubtitle": {"description": "Import leads list tile subtitle"},
+
+  "exportLeadsSubtitle": "Export to CSV or Excel",
+  "@exportLeadsSubtitle": {"description": "Export leads list tile subtitle"},
+
+  "syncOverlayFailed": "Failed to sync overlay settings: {error}",
+  "@syncOverlayFailed": {
+    "description": "Error message for overlay sync failure",
+    "placeholders": {"error": {"type": "String"}}
+  },
+
+  "dismissedNumbersCleared": "Dismissed numbers cleared.",
+  "@dismissedNumbersCleared": {"description": "Snackbar after clearing dismissed numbers"},
+
+  "errorGeneric": "Error: {error}",
+  "@errorGeneric": {
+    "description": "Generic error snackbar",
+    "placeholders": {"error": {"type": "String"}}
+  },
+
+  "security": "Security",
+  "@security": {"description": "Security settings section title"},
+
+  "pinLock": "PIN Lock",
+  "@pinLock": {"description": "PIN lock toggle title"},
+
+  "pinLockSubtitle": "Require PIN or biometric to open the app",
+  "@pinLockSubtitle": {"description": "PIN lock toggle subtitle"},
+
+  "setupPin": "Set up PIN",
+  "@setupPin": {"description": "Set up PIN list tile title"},
+
+  "setupPinSubtitle": "Choose a 4-digit PIN",
+  "@setupPinSubtitle": {"description": "Set up PIN list tile subtitle"},
+
+  "changePin": "Change PIN",
+  "@changePin": {"description": "Change PIN list tile title"},
+
+  "changePinSubtitle": "Update your 4-digit PIN",
+  "@changePinSubtitle": {"description": "Change PIN list tile subtitle"},
+
+  "disablePin": "Disable PIN",
+  "@disablePin": {"description": "Disable PIN list tile title"},
+
+  "disablePinConfirmTitle": "Disable PIN lock?",
+  "@disablePinConfirmTitle": {"description": "Confirm dialog title"},
+
+  "disablePinConfirmBody": "Your app data will not be PIN-protected. The database encryption key remains unchanged.",
+  "@disablePinConfirmBody": {"description": "Confirm dialog body"},
+
+  "disable": "Disable",
+  "@disable": {"description": "Disable action button"},
+
+  "autoLock": "Auto-lock",
+  "@autoLock": {"description": "Auto-lock setting title"},
+
+  "autoLockSubtitle": "Lock after app goes to background",
+  "@autoLockSubtitle": {"description": "Auto-lock setting subtitle"},
+
+  "autoLockImmediate": "Immediately",
+  "@autoLockImmediate": {"description": "Auto-lock option: immediately"},
+
+  "autoLock30s": "After 30 seconds",
+  "@autoLock30s": {"description": "Auto-lock option: 30 seconds"},
+
+  "autoLock1m": "After 1 minute",
+  "@autoLock1m": {"description": "Auto-lock option: 1 minute"},
+
+  "autoLock5m": "After 5 minutes",
+  "@autoLock5m": {"description": "Auto-lock option: 5 minutes"},
+
+  "autoLock15m": "After 15 minutes",
+  "@autoLock15m": {"description": "Auto-lock option: 15 minutes"},
+
+  "lockNow": "Lock now",
+  "@lockNow": {"description": "Lock the app immediately from settings"},
+
+  "language": "Language",
+  "@language": {"description": "Language settings section title"},
+
+  "languageLabel": "Language",
+  "@languageLabel": {"description": "Language picker list tile title"},
+
+  "languageSubtitle": "App display language",
+  "@languageSubtitle": {"description": "Language picker list tile subtitle"},
+
+  "languageEnglish": "English",
+  "@languageEnglish": {"description": "English language option"},
+
+  "languageAmharic": "አማርኛ (Amharic)",
+  "@languageAmharic": {"description": "Amharic language option"},
+
+  "calendar": "Calendar",
+  "@calendar": {"description": "Calendar settings section title"},
+
+  "calendarDisplay": "Calendar display",
+  "@calendarDisplay": {"description": "Calendar display mode picker title"},
+
+  "calendarDisplaySubtitle": "Date format used throughout the app",
+  "@calendarDisplaySubtitle": {"description": "Calendar display mode picker subtitle"},
+
+  "calendarEthiopian": "Ethiopian (ዓ.ም)",
+  "@calendarEthiopian": {"description": "Ethiopian calendar display mode"},
+
+  "calendarGregorian": "Gregorian",
+  "@calendarGregorian": {"description": "Gregorian calendar display mode"},
+
+  "calendarBoth": "Both",
+  "@calendarBoth": {"description": "Show both calendar systems"},
+
+  "pinLockedTitle": "Kiko is locked",
+  "@pinLockedTitle": {"description": "Lock screen main title"},
+
+  "pinLockedSubtitle": "Enter your PIN to continue",
+  "@pinLockedSubtitle": {"description": "Lock screen subtitle"},
+
+  "pinSetupTitle": "Set up PIN",
+  "@pinSetupTitle": {"description": "PIN setup screen title (step 1)"},
+
+  "pinConfirmTitle": "Confirm PIN",
+  "@pinConfirmTitle": {"description": "PIN setup screen title (step 2)"},
+
+  "pinChangeTitle": "Enter new PIN",
+  "@pinChangeTitle": {"description": "PIN change screen title (step 1)"},
+
+  "pinChangeConfirmTitle": "Confirm new PIN",
+  "@pinChangeConfirmTitle": {"description": "PIN change screen title (step 2)"},
+
+  "pinSetupSubtitle": "Choose a 4-digit PIN to protect your data",
+  "@pinSetupSubtitle": {"description": "PIN setup step 1 subtitle"},
+
+  "pinConfirmSubtitle": "Re-enter your PIN to confirm",
+  "@pinConfirmSubtitle": {"description": "PIN setup step 2 subtitle"},
+
+  "pinMismatch": "PINs didn't match. Please try again.",
+  "@pinMismatch": {"description": "Error when PIN confirmation doesn't match"},
+
+  "pinSaveFailed": "Failed to save PIN. Please try again.",
+  "@pinSaveFailed": {"description": "Error when PIN storage fails"},
+
+  "pinIncorrect": "Incorrect PIN. {count} attempt{plural} remaining.",
+  "@pinIncorrect": {
+    "description": "Wrong PIN entered; shows remaining attempts",
+    "placeholders": {
+      "count": {"type": "int"},
+      "plural": {"type": "String"}
+    }
+  },
+
+  "pinTooManyAttempts": "Too many attempts. Try again in {time}",
+  "@pinTooManyAttempts": {
+    "description": "Lockout message shown below PIN dots",
+    "placeholders": {"time": {"type": "String"}}
+  },
+
+  "pinForgot": "Forgot PIN",
+  "@pinForgot": {"description": "Forgot PIN button on lock screen"},
+
+  "pinForgotTitle": "Forgot PIN?",
+  "@pinForgotTitle": {"description": "Forgot PIN dialog title"},
+
+  "pinForgotBody": "PIN reset via email OTP will be available after account setup (Phase 9). For now, please uninstall and reinstall the app to reset all data.",
+  "@pinForgotBody": {"description": "Forgot PIN dialog body"},
+
+  "pinEnabled": "PIN lock enabled",
+  "@pinEnabled": {"description": "Snackbar after PIN is set up"},
+
+  "pinDisabled": "PIN lock disabled",
+  "@pinDisabled": {"description": "Snackbar after PIN is disabled"},
+
+  "pinChanged": "PIN updated",
+  "@pinChanged": {"description": "Snackbar after PIN is changed"},
+
+  "biometricPrompt": "Unlock Kiko",
+  "@biometricPrompt": {"description": "Biometric authentication prompt message"},
+
+  "ethiopianDatePickerTitle": "Select date",
+  "@ethiopianDatePickerTitle": {"description": "Ethiopian date picker dialog title"},
+
+  "today": "Today",
+  "@today": {"description": "Today label in date pickers"},
+
+  "gregorianDate": "Gregorian: {date}",
+  "@gregorianDate": {
+    "description": "Shows the Gregorian equivalent in the ET picker",
+    "placeholders": {"date": {"type": "String"}}
+  }
 }

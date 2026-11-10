@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/providers.dart';
 import 'app/router.dart';
+import 'features/security/app_lock_wrapper.dart';
+import 'features/security/pin_setup_screen.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {
@@ -34,11 +36,6 @@ void main() async {
 //   • On cold start (addPostFrameCallback in _KikoAppState.initState)
 //   • On lifecycle resume (didChangeAppLifecycleState)
 //
-// The Kotlin BootReceiver handles re-scheduling on BOOT_COMPLETED using
-// AlarmStore (SharedPreferences), which covers the case where Flutter never
-// starts.  This Dart path is the safety net for any gap between native
-// reschedule and Dart state.
-//
 // Order: drain pending call events first so any status updates land in DB
 // before rescheduleAll reads reminder/schedule rows.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,6 +61,7 @@ Future<void> _rescheduleAll(WidgetRef ref) async {
 //
 // Triggers the full reschedule + drain whenever the app returns to the
 // foreground. Registered on the WidgetsBinding by KikoApp.
+// Note: auto-lock lifecycle is handled inside AppLockWrapper.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AppLifecycleObserver extends WidgetsBindingObserver {
@@ -103,6 +101,7 @@ class _KikoAppState extends ConsumerState<KikoApp> {
     // is fully initialised before we read from it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _rescheduleAll(ref);
+      _maybeOfferPinSetup();
     });
   }
 
@@ -112,8 +111,50 @@ class _KikoAppState extends ConsumerState<KikoApp> {
     super.dispose();
   }
 
+  // ── First-launch PIN setup ────────────────────────────────────────────────
+  //
+  // On the very first launch (pinSetupOffered == false), show the skippable
+  // PIN setup screen via an overlay modal route.  Marks the flag after the
+  // screen is dismissed (whether the user set a PIN or skipped).
+
+  Future<void> _maybeOfferPinSetup() async {
+    final settings = ref.read(appSettingsProvider);
+    if (settings.pinSetupOffered) return;
+
+    // If a PIN is already set (e.g. restored from backup), skip the offer.
+    final hasPinSet = await settings.hasPinSet();
+    if (hasPinSet) {
+      await settings.setPinSetupOffered(true);
+      return;
+    }
+
+    final nav = appNavigatorKey.currentState;
+    if (nav == null || !mounted) return;
+
+    await nav.push<void>(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => PinSetupScreen(
+          allowSkip: true,
+          onComplete: () {
+            // Mark as offered so this screen never shows again.
+            settings.setPinSetupOffered(true);
+            nav.pop();
+          },
+        ),
+      ),
+    );
+
+    // Fallback: also mark as offered if the user dismissed via system back.
+    await settings.setPinSetupOffered(true);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Watch the locale preference so the app rebuilds when language changes.
+    final localeCode = ref.watch(localePrefProvider);
+    final locale = Locale(localeCode);
+
     return MaterialApp.router(
       title: 'Kiko',
       routerConfig: appRouter,
@@ -121,6 +162,7 @@ class _KikoAppState extends ConsumerState<KikoApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
         useMaterial3: true,
       ),
+      locale: locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -128,6 +170,10 @@ class _KikoAppState extends ConsumerState<KikoApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) {
+        // Wrap the entire navigator tree with AppLockWrapper.
+        return AppLockWrapper(child: child ?? const SizedBox.shrink());
+      },
     );
   }
 }

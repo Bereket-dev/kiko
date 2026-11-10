@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/providers.dart';
 import '../../core/db/database.dart';
 import '../../core/models/lead_status.dart';
+import '../../core/utils/secure_flag.dart';
 import '../reminders/set_reminder_widget.dart';
 import 'status_chip.dart';
 
@@ -26,31 +27,35 @@ class LeadDetailScreen extends ConsumerWidget {
     final phonesAsync = ref.watch(leadPhonesProvider(leadId));
     final sectionsAsync = ref.watch(leadSectionsProvider(leadId));
     final imagesAsync = ref.watch(leadImagesProvider(leadId));
+    final flagSecure = ref.watch(appSettingsProvider).flagSecureEnabled;
 
-    return leadAsync.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Scaffold(
-        appBar: AppBar(),
-        body: Center(child: Text('Error: $e')),
-      ),
-      data: (lead) {
-        if (lead == null) {
-          return Scaffold(
-            appBar: AppBar(),
-            body: const Center(child: Text('Lead not found')),
+    return SecureFlagScope(
+      enabled: flagSecure,
+      child: leadAsync.when(
+        loading: () =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        error: (e, _) => Scaffold(
+          appBar: AppBar(),
+          body: Center(child: Text('Error: $e')),
+        ),
+        data: (lead) {
+          if (lead == null) {
+            return Scaffold(
+              appBar: AppBar(),
+              body: const Center(child: Text('Lead not found')),
+            );
+          }
+          return _LeadDetailView(
+            lead: lead,
+            phonesAsync: phonesAsync,
+            sectionsAsync: sectionsAsync,
+            imagesAsync: imagesAsync,
+            onEdit: () => context.push('/leads/${lead.id}/edit'),
+            onDelete: () => _confirmDelete(context, ref, lead),
+            onReminder: () => _openReminderSheet(context, ref, lead),
           );
-        }
-        return _LeadDetailView(
-          lead: lead,
-          phonesAsync: phonesAsync,
-          sectionsAsync: sectionsAsync,
-          imagesAsync: imagesAsync,
-          onEdit: () => context.push('/leads/${lead.id}/edit'),
-          onDelete: () => _confirmDelete(context, ref, lead),
-          onReminder: () => _openReminderSheet(context, ref, lead),
-        );
-      },
+        },
+      ),
     );
   }
 

@@ -126,7 +126,7 @@ class _RecentCallsScreenState extends ConsumerState<RecentCallsScreen> {
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _entries!.length,
-        separatorBuilder: (_, __) =>
+        separatorBuilder: (_, _) =>
             const Divider(height: 1, indent: 72),
         itemBuilder: (context, i) => _CallTile(
           entry: _entries![i],
