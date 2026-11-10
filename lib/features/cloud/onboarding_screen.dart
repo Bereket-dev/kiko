@@ -684,7 +684,12 @@ class _RecoveryStepState extends ConsumerState<_RecoveryStep> {
           await widget.keyService.fetchWrappedKeyFromFirestore(userId);
       if (existing != null) {
         // Second device — unlock with existing recovery code.
-        final devices = await _deviceService.listDevices(userId);
+        List<DeviceInfo> devices = const [];
+        try {
+          devices = await _deviceService.listDevices(userId);
+        } catch (e) {
+          debugPrint('[Onboarding] Cloud functions unavailable for listDevices: $e');
+        }
         if (!mounted) return;
         setState(() {
           _isRestore = true;
@@ -702,7 +707,9 @@ class _RecoveryStepState extends ConsumerState<_RecoveryStep> {
         _recoveryCode = code;
         _initializing = false;
       });
-    } catch (e) {
+    } catch (e, stack) {
+      // ignore: avoid_print
+      print('[Onboarding] Failed to prepare encryption setup: $e\n$stack');
       if (!mounted) return;
       setState(() {
         _error = 'Failed to prepare encryption setup.\n$e';
@@ -733,11 +740,14 @@ class _RecoveryStepState extends ConsumerState<_RecoveryStep> {
         deviceId: deviceId,
         deviceName: deviceName,
       );
+      final devices = await _deviceService.listDevices(userId);
+      await settings.setDevicesRegistered(devices.length);
     } on DeviceAlreadyRegisteredException {
       // Already registered — fine.
+    } catch (e) {
+      debugPrint('[Onboarding] Cloud functions unavailable for registerDevice: $e');
+      await settings.setDevicesRegistered(1);
     }
-    final devices = await _deviceService.listDevices(userId);
-    await settings.setDevicesRegistered(devices.length);
   }
 
   Future<void> _sendOtp() async {
